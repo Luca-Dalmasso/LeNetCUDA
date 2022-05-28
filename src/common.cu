@@ -114,5 +114,10 @@ uint_8 checkRes(float *host, float *device, unsigned int nx, unsigned int ny){
 	return 0;
 }
 
+void printChunk(float *mem, unsigned int size){
+	for(int i=0;i<size;i++)
+		fprintf(stdout,"%d ",mem[i]);
+}
+
 
 

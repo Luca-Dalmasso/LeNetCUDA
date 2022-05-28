@@ -92,6 +92,11 @@ uint_8 checkRes(float *host, float *device, unsigned int nx, unsigned int ny);
  */
 void deviceInfor(void);
 
+/**
+ * @brief print chunk of data
+ */
+void printChunk(float *mem, unsigned int size);
+
 
 #endif
 
