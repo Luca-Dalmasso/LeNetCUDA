@@ -9,16 +9,16 @@
 #include <stdlib.h>
 #include <sys/time.h>
 
-__global__ void copyRow (float *src, float* dest, unsigned int nx, unsigned int ny){
-	unsigned int ix=blockDim.x * blockIdx.x + threadIdx.x;
-	unsigned int iy=blockDim.y * blockIdx.y + threadIdx.y;
+__global__ void copyRow (float *src, float* dest, uint_32 nx, uint_32 ny){
+	uint_32 ix=blockDim.x * blockIdx.x + threadIdx.x;
+	uint_32 iy=blockDim.y * blockIdx.y + threadIdx.y;
 	if (ix>=nx || iy>=ny) return;
 	dest[iy*nx + ix]=src[iy*nx + ix];
 }
 
-__global__ void copyCol (float* src, float* dest, unsigned int nx, unsigned int ny){
-	unsigned int ix=blockDim.x * blockIdx.x + threadIdx.x;
-	unsigned int iy=blockDim.y * blockIdx.y + threadIdx.y;
+__global__ void copyCol (float* src, float* dest, uint_32 nx, uint_32 ny){
+	uint_32 ix=blockDim.x * blockIdx.x + threadIdx.x;
+	uint_32 iy=blockDim.y * blockIdx.y + threadIdx.y;
 	if (ix>=nx || iy>=ny) return;
 	dest[ix*ny + iy]=src[ix*ny + iy];
 }
@@ -101,22 +101,21 @@ void deviceInfor(void){
 }
 
 uint_8 randomUint8(void){
-	time_t t;
-	srand((unsigned) time(&t));
+	//this variable must be declared static
+	static unsigned int t;
+	//initialize lfsr with t as a SEED
+	srand(t);
+	//change the seed, the seed is declared as static so his value will remain in the memory
+	t=t+13;
 	return rand()%0xff;
 }
 
-uint_8 checkRes(float *host, float *device, unsigned int nx, unsigned int ny){
-	unsigned int i;
+uint_8 checkRes(float *host, float *device, uint_32 nx, uint_32 ny){
+	uint_32 i;
 	for(i=0;i<(nx*ny);i++)
 		if(host[i]!=device[i])
 			return 1;
 	return 0;
-}
-
-void printChunk(float *mem, unsigned int size){
-	for(int i=0;i<size;i++)
-		fprintf(stdout,"%d ",mem[i]);
 }
 
 

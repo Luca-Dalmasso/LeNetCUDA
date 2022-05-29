@@ -7,11 +7,26 @@
 #define _COMMON
 
 /**
+* @defgroup set of macros for this application (default all to 0)
+* @{
+*/
+
+/*enable verbose stdout (disable this when profiling)*/
+#define VERBOSE 1
+/* shared memory padding size (0= no padding, 1= used for 4byte banks, 2=used when shared memory has 8byte banks)*/
+#define IPAD 0
+/*enable host computations for error checking*/
+#define CHECK 1
+
+/** @} */
+
+/**
 * @defgroup C typedef for this application
 * @{
 */
 typedef unsigned char uint_8;
 typedef signed char int_8;
+typedef unsigned int uint_32;
 /** @} */
 
 /**
@@ -54,7 +69,7 @@ typedef signed char int_8;
  * @param unsigned int nx: array's index x
  * @param unsigned int ny: array's index y
  */
-__global__ void copyRow (float *src, float* dest, unsigned int nx, unsigned int ny);
+__global__ void copyRow (float *src, float* dest, uint_32 nx, uint_32 ny);
 
 /**
  * @brief function to compute lower bound global memory bandwidth
@@ -64,7 +79,7 @@ __global__ void copyRow (float *src, float* dest, unsigned int nx, unsigned int 
  * @param unsigned int nx: array's index x
  * @param unsigned int ny: array's index y
  */
-__global__ void copyCol (float *src, float* dest, unsigned int nx, unsigned int ny);
+__global__ void copyCol (float *src, float* dest, uint_32 nx, uint_32 ny);
 
 /**
  * @brief function that returns a random number in range [0-255]
@@ -85,17 +100,12 @@ double cpuSecond(void);
  * @param ny: number of rows of the matrix (PUT 1 if 1D array)
  * @return 0 if equals, 1 if NOT
  */
-uint_8 checkRes(float *host, float *device, unsigned int nx, unsigned int ny);
+uint_8 checkRes(float *host, float *device, uint_32 nx, uint_32 ny);
 
 /**
  * @brief query info from your GPU
  */
 void deviceInfor(void);
-
-/**
- * @brief print chunk of data
- */
-void printChunk(float *mem, unsigned int size);
 
 
 #endif
