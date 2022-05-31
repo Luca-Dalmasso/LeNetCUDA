@@ -13,12 +13,14 @@
 
 /*enable verbose stdout (disable this when profiling)*/
 #define VERBOSE 1
-/* shared memory padding size (0= no padding, 1= used for 4byte banks, 2=used when shared memory has 8byte banks)*/
+/*shared memory padding size (0= no padding, 1= used for 4byte banks, 2=used when shared memory has 8byte banks)*/
 #define IPAD 0
 /*enable host computations for error checking*/
 #define CHECK 1
-
+/*maximum difference allowed between a GPU and a CPU result in order to consider them equal (used for fast math intrinsic functions)*/
+#define DELTA 1e-3f
 /** @} */
+
 
 /**
 * @defgroup C typedef for this application
@@ -106,7 +108,6 @@ uint_8 checkRes(float *host, float *device, uint_32 nx, uint_32 ny);
  * @brief query info from your GPU
  */
 void deviceInfor(void);
-
 
 #endif
 

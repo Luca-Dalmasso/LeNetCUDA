@@ -12,8 +12,7 @@ METRICS+="achieved_occupancy,branch_efficiency"
 #profiler args
 PROFILER_ARGS="--csv" #--log-file $REPORT_FILE2"
 
-#stop=$iKernel
-stop=9
+stop=$iKernel
 iKernel=0
 zero=0
 while [ $stop -ge 0 ]
