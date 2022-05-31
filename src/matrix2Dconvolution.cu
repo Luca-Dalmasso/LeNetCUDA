@@ -153,7 +153,44 @@ __global__ void sharedUnroll2Dconvolution(float *in, float *out, int nx, int ny,
 
 __global__ void fm_sharedUnroll2Dconvolution(float *in, float *out, int nx, int ny, float *filter, int kernelSize)
 {
-	
+	extern __shared__ float tileNs[];
+    int tx = threadIdx.x;
+    int ty = threadIdx.y;
+	int center = (kernelSize>>1);
+	int TILE_SIZE = blockDim.x - kernelSize +1;
+    int row_o = ty + IMUL(blockIdx.y,TILE_SIZE);
+    int col_o = tx + IMUL(blockIdx.x,TILE_SIZE);
+    int row_i = row_o - center;
+    int col_i = col_o - center;
+    int idT=IMAD(ty,blockDim.x, tx);
+    int idI=IMAD(row_i,nx,col_i);
+    float fid;
+    float iid;
+    if(row_i >= 0 && row_i < ny && col_i >= 0 && col_i < nx)
+        tileNs[idT] = in[idI];
+    else
+        tileNs[idT] = 0.0f;
+    __syncthreads();
+    if(tx < TILE_SIZE && ty < TILE_SIZE){
+        float pValue = 0.0f;
+        #pragma unroll(5)
+        for(int y=0; y<KERNEL_SIZE; y++){
+        	#pragma unroll(5)
+            for(int x=0; x<KERNEL_SIZE; x++){
+            	idT=IMAD(y,kernelSize,x);
+            	fid=filter[idT];
+            	idT=y+ty;
+            	idI=x+tx;
+            	idT=IMAD(idT,blockDim.x,idI);
+            	iid=tileNs[idT];
+                pValue = FMAD(fid,iid,pValue);   
+            }
+        }
+        if(row_o < ny && col_o < nx){
+        	idT=IMAD(row_o,nx,col_o);
+        	out[idT] = pValue;    	
+        }
+    }
 }
 
 

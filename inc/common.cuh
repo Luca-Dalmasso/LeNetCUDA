@@ -19,6 +19,9 @@
 #define CHECK 1
 /*maximum difference allowed between a GPU and a CPU result in order to consider them equal (used for fast math intrinsic functions)*/
 #define DELTA 1e-3f
+#define IMAD(a,b,c) (__mul24((a),(b))+c)
+#define IMUL(a,b) (__mul24((a),(b)))
+#define FMAD(a,b,c) (__fmaf_rd( (a),(b),(c) ))
 /** @} */
 
 
