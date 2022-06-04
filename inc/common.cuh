@@ -12,7 +12,7 @@
 */
 
 /*enable verbose stdout (disable this when profiling)*/
-#define VERBOSE 1
+#define VERBOSE 0
 /*shared memory padding size (0= no padding, 1= used for 4byte banks, 2=used when shared memory has 8byte banks)*/
 #define IPAD 0
 /*enable host computations for error checking*/
@@ -21,7 +21,7 @@
 #define DELTA 1e-3f
 #define IMAD(a,b,c) (__mul24((a),(b))+c)
 #define IMUL(a,b) (__mul24((a),(b)))
-#define FMAD(a,b,c) (__fmaf_rd( (a),(b),(c) ))
+#define FEXP(a) (__expf((a)))
 /** @} */
 
 
