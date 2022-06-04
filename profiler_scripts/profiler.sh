@@ -17,7 +17,7 @@
 ## SETUP
 ##
 ######################################################################
-APP_NAME=""
+APP_NAME="testAvgPool"
 CURRENT_DIR=.
 REPORT_DIR=../${CURRENT_DIR}/report
 LOG_DIR=../${CURRENT_DIR}/logs

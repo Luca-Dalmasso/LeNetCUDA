@@ -13,9 +13,10 @@ METRICS+="achieved_occupancy,branch_efficiency"
 PROFILER_ARGS="--csv" #--log-file $REPORT_FILE2"
 
 stop=$iKernel
+stop=$(($stop -1))
 iKernel=0
 zero=0
-while [ $stop -ge 0 ]
+while [ $stop -ge 1 ]
 do
 	echo "Profiling $iKernel.."
     sudo $PROFILER_PATH $PROFILER_ARGS --metrics $METRICS $BIN $iKernel 1>/dev/null 2>>$REPORT_FILE2
