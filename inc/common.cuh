@@ -19,9 +19,12 @@
 #define CHECK 1
 /*maximum difference allowed between a GPU and a CPU result in order to consider them equal (used for fast math intrinsic functions)*/
 #define DELTA 1e-3f
-#define IMAD(a,b,c) (__mul24((a),(b))+c)
+/*intrinsic Multiply24*/
 #define IMUL(a,b) (__mul24((a),(b)))
+/*instrinsic single precision fast exponential*/
 #define FEXP(a) (__expf((a)))
+/*intrinsic single precision fast division*/
+#define FDIV(a,b) (__fdividef((a),(b)))
 /** @} */
 
 
@@ -38,17 +41,18 @@ typedef unsigned int uint_32;
  * @brief check if the cuda call correctly worked
  * @param error: return value of a systemcall
  */
-#define CHECK_CUDA(error)                                                       \
-{                                                                              	\
-    if (error != cudaSuccess)                                                  	\
-    {                                                                          	\
-        fprintf(stderr, "Error: %s:%d\n", __FILE__, __LINE__);                 	\
-        fprintf(stderr, "code: %d, reason: %s\n", error,                       	\
-        cudaGetErrorString(error));                                   			\
-		exit(-1);						       									\
-    }                                                                          	\
-    																			\
+#define CHECK_CUDA(call)                                                       \
+{                                                                              \
+    const cudaError_t error = call;                                            \
+    if (error != cudaSuccess)                                                  \
+    {                                                                          \
+        fprintf(stderr, "Error: %s:%d, ", __FILE__, __LINE__);                 \
+        fprintf(stderr, "code: %d, reason: %s\n", error,                       \
+                cudaGetErrorString(error));                                    \
+        exit(-1);															   \
+    }                                                                          \
 }
+
 
 
 /**
@@ -74,7 +78,7 @@ typedef unsigned int uint_32;
  * @param unsigned int nx: array's index x
  * @param unsigned int ny: array's index y
  */
-__global__ void copyRow (float *src, float* dest, uint_32 nx, uint_32 ny);
+__global__ void copyRow (float *src, float* dest, int nx, int ny);
 
 /**
  * @brief function to compute lower bound global memory bandwidth
@@ -84,7 +88,7 @@ __global__ void copyRow (float *src, float* dest, uint_32 nx, uint_32 ny);
  * @param unsigned int nx: array's index x
  * @param unsigned int ny: array's index y
  */
-__global__ void copyCol (float *src, float* dest, uint_32 nx, uint_32 ny);
+__global__ void copyCol (float *src, float* dest, int nx, int ny);
 
 /**
  * @brief function that returns a random number in range [0-255]
@@ -105,7 +109,7 @@ double cpuSecond(void);
  * @param ny: number of rows of the matrix (PUT 1 if 1D array)
  * @return 0 if equals, 1 if NOT
  */
-uint_8 checkRes(float *host, float *device, uint_32 nx, uint_32 ny);
+uint_8 checkRes(float *host, float *device, int nx, int ny);
 
 /**
  * @brief query info from your GPU

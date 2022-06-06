@@ -9,14 +9,14 @@
 #include <stdlib.h>
 #include <sys/time.h>
 
-__global__ void copyRow (float *src, float* dest, uint_32 nx, uint_32 ny){
+__global__ void copyRow (float *src, float* dest, int nx, int ny){
 	uint_32 ix=blockDim.x * blockIdx.x + threadIdx.x;
 	uint_32 iy=blockDim.y * blockIdx.y + threadIdx.y;
 	if (ix>=nx || iy>=ny) return;
 	dest[iy*nx + ix]=src[iy*nx + ix];
 }
 
-__global__ void copyCol (float* src, float* dest, uint_32 nx, uint_32 ny){
+__global__ void copyCol (float* src, float* dest, int nx, int ny){
 	uint_32 ix=blockDim.x * blockIdx.x + threadIdx.x;
 	uint_32 iy=blockDim.y * blockIdx.y + threadIdx.y;
 	if (ix>=nx || iy>=ny) return;
@@ -110,7 +110,7 @@ uint_8 randomUint8(void){
 	return rand()%0xf;
 }
 
-uint_8 checkRes(float *host, float *device, uint_32 nx, uint_32 ny){
+uint_8 checkRes(float *host, float *device, int nx, int ny){
 	uint_32 i;
 	for(i=0;i<(nx*ny);i++){
 		if(abs(host[i]-device[i])>DELTA){

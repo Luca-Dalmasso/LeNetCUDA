@@ -1,0 +1,75 @@
+==27228== NVPROF is profiling process 27228, command: .././testConvLayer 0
+==27228== Some kernel(s) will be replayed on device 0 in order to collect all events/metrics.
+==27228== Profiling application: .././testConvLayer 0
+==27228== Profiling result:
+==27228== Metric result:
+"Device","Kernel","Invocations","Metric Name","Metric Description","Min","Max","Avg"
+"NVIDIA Tegra X1 (0)","naiveConvLayer(float*, float*, float*, int)",1,"gld_efficiency","Global Memory Load Efficiency",58.781226%,58.781226%,58.781226%
+"NVIDIA Tegra X1 (0)","naiveConvLayer(float*, float*, float*, int)",1,"gst_efficiency","Global Memory Store Efficiency",75.000000%,75.000000%,75.000000%
+"NVIDIA Tegra X1 (0)","naiveConvLayer(float*, float*, float*, int)",1,"gld_transactions","Global Load Transactions",21442,21442,21442
+"NVIDIA Tegra X1 (0)","naiveConvLayer(float*, float*, float*, int)",1,"gst_transactions","Global Store Transactions",96,96,96
+"NVIDIA Tegra X1 (0)","naiveConvLayer(float*, float*, float*, int)",1,"shared_load_transactions_per_request","Shared Memory Load Transactions Per Request",0.000000,0.000000,0.000000
+"NVIDIA Tegra X1 (0)","naiveConvLayer(float*, float*, float*, int)",1,"shared_store_transactions_per_request","Shared Memory Store Transactions Per Request",0.000000,0.000000,0.000000
+"NVIDIA Tegra X1 (0)","naiveConvLayer(float*, float*, float*, int)",1,"shared_efficiency","Shared Memory Efficiency",0.000000%,0.000000%,0.000000%
+"NVIDIA Tegra X1 (0)","naiveConvLayer(float*, float*, float*, int)",1,"achieved_occupancy","Achieved Occupancy",0.399122,0.399122,0.399122
+"NVIDIA Tegra X1 (0)","naiveConvLayer(float*, float*, float*, int)",1,"branch_efficiency","Branch Efficiency",95.705521%,95.705521%,95.705521%
+==27240== NVPROF is profiling process 27240, command: .././testConvLayer 1
+==27240== Some kernel(s) will be replayed on device 0 in order to collect all events/metrics.
+==27240== Profiling application: .././testConvLayer 1
+==27240== Profiling result:
+==27240== Metric result:
+"Device","Kernel","Invocations","Metric Name","Metric Description","Min","Max","Avg"
+"NVIDIA Tegra X1 (0)","sharedConvLayer(float*, float*, float*, int)",1,"gld_efficiency","Global Memory Load Efficiency",21.013289%,21.013289%,21.013289%
+"NVIDIA Tegra X1 (0)","sharedConvLayer(float*, float*, float*, int)",1,"gst_efficiency","Global Memory Store Efficiency",64.864865%,64.864865%,64.864865%
+"NVIDIA Tegra X1 (0)","sharedConvLayer(float*, float*, float*, int)",1,"gld_transactions","Global Load Transactions",16654,16654,16654
+"NVIDIA Tegra X1 (0)","sharedConvLayer(float*, float*, float*, int)",1,"gst_transactions","Global Store Transactions",111,111,111
+"NVIDIA Tegra X1 (0)","sharedConvLayer(float*, float*, float*, int)",1,"shared_load_transactions_per_request","Shared Memory Load Transactions Per Request",1.000000,1.000000,1.000000
+"NVIDIA Tegra X1 (0)","sharedConvLayer(float*, float*, float*, int)",1,"shared_store_transactions_per_request","Shared Memory Store Transactions Per Request",1.000000,1.000000,1.000000
+"NVIDIA Tegra X1 (0)","sharedConvLayer(float*, float*, float*, int)",1,"shared_efficiency","Shared Memory Efficiency",80.798479%,80.798479%,80.798479%
+"NVIDIA Tegra X1 (0)","sharedConvLayer(float*, float*, float*, int)",1,"achieved_occupancy","Achieved Occupancy",0.605725,0.605725,0.605725
+"NVIDIA Tegra X1 (0)","sharedConvLayer(float*, float*, float*, int)",1,"branch_efficiency","Branch Efficiency",100.000000%,100.000000%,100.000000%
+==27249== NVPROF is profiling process 27249, command: .././testConvLayer 2
+==27249== Some kernel(s) will be replayed on device 0 in order to collect all events/metrics.
+==27249== Profiling application: .././testConvLayer 2
+==27249== Profiling result:
+==27249== Metric result:
+"Device","Kernel","Invocations","Metric Name","Metric Description","Min","Max","Avg"
+"NVIDIA Tegra X1 (0)","sharedUnroll5ConvLayer(float*, float*, float*)",1,"gld_efficiency","Global Memory Load Efficiency",21.013289%,21.013289%,21.013289%
+"NVIDIA Tegra X1 (0)","sharedUnroll5ConvLayer(float*, float*, float*)",1,"gst_efficiency","Global Memory Store Efficiency",64.864865%,64.864865%,64.864865%
+"NVIDIA Tegra X1 (0)","sharedUnroll5ConvLayer(float*, float*, float*)",1,"gld_transactions","Global Load Transactions",16654,16654,16654
+"NVIDIA Tegra X1 (0)","sharedUnroll5ConvLayer(float*, float*, float*)",1,"gst_transactions","Global Store Transactions",111,111,111
+"NVIDIA Tegra X1 (0)","sharedUnroll5ConvLayer(float*, float*, float*)",1,"shared_load_transactions_per_request","Shared Memory Load Transactions Per Request",1.000000,1.000000,1.000000
+"NVIDIA Tegra X1 (0)","sharedUnroll5ConvLayer(float*, float*, float*)",1,"shared_store_transactions_per_request","Shared Memory Store Transactions Per Request",1.000000,1.000000,1.000000
+"NVIDIA Tegra X1 (0)","sharedUnroll5ConvLayer(float*, float*, float*)",1,"shared_efficiency","Shared Memory Efficiency",80.798479%,80.798479%,80.798479%
+"NVIDIA Tegra X1 (0)","sharedUnroll5ConvLayer(float*, float*, float*)",1,"achieved_occupancy","Achieved Occupancy",0.634804,0.634804,0.634804
+"NVIDIA Tegra X1 (0)","sharedUnroll5ConvLayer(float*, float*, float*)",1,"branch_efficiency","Branch Efficiency",100.000000%,100.000000%,100.000000%
+==27259== NVPROF is profiling process 27259, command: .././testConvLayer 3
+==27259== Some kernel(s) will be replayed on device 0 in order to collect all events/metrics.
+==27259== Profiling application: .././testConvLayer 3
+==27259== Profiling result:
+==27259== Metric result:
+"Device","Kernel","Invocations","Metric Name","Metric Description","Min","Max","Avg"
+"NVIDIA Tegra X1 (0)","approx5ConvLayer(float*, float*, float*)",1,"gld_efficiency","Global Memory Load Efficiency",21.013289%,21.013289%,21.013289%
+"NVIDIA Tegra X1 (0)","approx5ConvLayer(float*, float*, float*)",1,"gst_efficiency","Global Memory Store Efficiency",64.864865%,64.864865%,64.864865%
+"NVIDIA Tegra X1 (0)","approx5ConvLayer(float*, float*, float*)",1,"gld_transactions","Global Load Transactions",16654,16654,16654
+"NVIDIA Tegra X1 (0)","approx5ConvLayer(float*, float*, float*)",1,"gst_transactions","Global Store Transactions",111,111,111
+"NVIDIA Tegra X1 (0)","approx5ConvLayer(float*, float*, float*)",1,"shared_load_transactions_per_request","Shared Memory Load Transactions Per Request",1.000000,1.000000,1.000000
+"NVIDIA Tegra X1 (0)","approx5ConvLayer(float*, float*, float*)",1,"shared_store_transactions_per_request","Shared Memory Store Transactions Per Request",1.000000,1.000000,1.000000
+"NVIDIA Tegra X1 (0)","approx5ConvLayer(float*, float*, float*)",1,"shared_efficiency","Shared Memory Efficiency",80.798479%,80.798479%,80.798479%
+"NVIDIA Tegra X1 (0)","approx5ConvLayer(float*, float*, float*)",1,"achieved_occupancy","Achieved Occupancy",0.651704,0.651704,0.651704
+"NVIDIA Tegra X1 (0)","approx5ConvLayer(float*, float*, float*)",1,"branch_efficiency","Branch Efficiency",100.000000%,100.000000%,100.000000%
+==27275== NVPROF is profiling process 27275, command: .././testConvLayer 4
+==27275== Some kernel(s) will be replayed on device 0 in order to collect all events/metrics.
+==27275== Profiling application: .././testConvLayer 4
+==27275== Profiling result:
+==27275== Metric result:
+"Device","Kernel","Invocations","Metric Name","Metric Description","Min","Max","Avg"
+"NVIDIA Tegra X1 (0)","custom5ConvLayer(float*, float*, float*)",1,"gld_efficiency","Global Memory Load Efficiency",25.733025%,25.733025%,25.733025%
+"NVIDIA Tegra X1 (0)","custom5ConvLayer(float*, float*, float*)",1,"gst_efficiency","Global Memory Store Efficiency",80.000000%,80.000000%,80.000000%
+"NVIDIA Tegra X1 (0)","custom5ConvLayer(float*, float*, float*)",1,"gld_transactions","Global Load Transactions",8994,8994,8994
+"NVIDIA Tegra X1 (0)","custom5ConvLayer(float*, float*, float*)",1,"gst_transactions","Global Store Transactions",90,90,90
+"NVIDIA Tegra X1 (0)","custom5ConvLayer(float*, float*, float*)",1,"shared_load_transactions_per_request","Shared Memory Load Transactions Per Request",1.000000,1.000000,1.000000
+"NVIDIA Tegra X1 (0)","custom5ConvLayer(float*, float*, float*)",1,"shared_store_transactions_per_request","Shared Memory Store Transactions Per Request",1.000000,1.000000,1.000000
+"NVIDIA Tegra X1 (0)","custom5ConvLayer(float*, float*, float*)",1,"shared_efficiency","Shared Memory Efficiency",82.521739%,82.521739%,82.521739%
+"NVIDIA Tegra X1 (0)","custom5ConvLayer(float*, float*, float*)",1,"achieved_occupancy","Achieved Occupancy",0.327366,0.327366,0.327366
+"NVIDIA Tegra X1 (0)","custom5ConvLayer(float*, float*, float*)",1,"branch_efficiency","Branch Efficiency",100.000000%,100.000000%,100.000000%
