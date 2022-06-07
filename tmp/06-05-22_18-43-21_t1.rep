@@ -1,5 +1,0 @@
-naiveConvLayer,27.604066,0.000227,0.731375,grid(2.2),block(16.16)
-sharedConvLayer,22.975262,0.000273,0.626201,grid(2.2),block(20.20)
-sharedUnroll5ConvLayer,28.501273,0.000220,2.613218,grid(2.2),block(20.20)
-approx5ConvLayer,34.432820,0.000182,0.922775,grid(2.2),block(20.20)
-custom5ConvLayer,34.120201,0.000184,0.952010,grid(1.1),block(28.28)

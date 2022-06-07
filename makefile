@@ -3,7 +3,7 @@
 #Last modification: 28/05/2022 by Luca
 
 #Application name (main.cu file by default)
-NAME=testConvLayer
+NAME=LeNet
 #Source path (.cu)
 SRC=src/
 #Headers path (.h)

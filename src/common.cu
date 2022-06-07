@@ -29,7 +29,8 @@ double cpuSecond(void) {
 	return ((double)tp.tv_sec + (double)tp.tv_usec*1.e-6);
 }
 
-void deviceInfor(void){
+
+void initCUDA(void){
 	int deviceCount = 0;
     cudaGetDeviceCount(&deviceCount);
     if (deviceCount == 0)
@@ -37,6 +38,7 @@ void deviceInfor(void){
         printf("There are no available device(s) that support CUDA\n");
         exit(1);
     }
+    #if (VERBOSE==2)
     printf("Detected %d CUDA Capable device(s)\n", deviceCount);
     int dev = 0, driverVersion = 0, runtimeVersion = 0;
     CHECK_CUDA(cudaSetDevice(dev));
@@ -98,6 +100,8 @@ void deviceInfor(void){
            deviceProp.maxGridSize[2]);
     printf("  Maximum memory pitch:                          %lu bytes\n",
            deviceProp.memPitch);
+    #endif
+    cudaSetDevice(0);
 }
 
 uint_8 randomUint8(void){
