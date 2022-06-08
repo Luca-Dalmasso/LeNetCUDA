@@ -1,0 +1,24 @@
+==29647== NVPROF is profiling process 29647, command: ./LeNet
+==29647== Warning: Unified Memory Profiling is not supported on the underlying platform. System requirements for unified memory can be found at: http://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#um-requirements
+==29647== Profiling application: ./LeNet
+==29647== Profiling result:
+            Type  Time(%)      Time     Calls       Avg       Min       Max  Name
+ GPU activities:   89.74%  215.57us         1  215.57us  215.57us  215.57us  deviceForwardV1(float*, float*)
+                    7.16%  17.196us         4  4.2990us  2.7630us  8.0770us  [CUDA memcpy HtoD]
+                    3.10%  7.4520us         1  7.4520us  7.4520us  7.4520us  [CUDA memcpy DtoH]
+      API calls:   71.56%  351.69ms         2  175.84ms  21.615us  351.66ms  cudaMalloc
+                   28.22%  138.68ms         1  138.68ms  138.68ms  138.68ms  cudaDeviceReset
+                    0.05%  259.17us         1  259.17us  259.17us  259.17us  cudaDeviceSynchronize
+                    0.04%  207.77us         2  103.88us  67.554us  140.21us  cudaMemcpy
+                    0.04%  200.27us         2  100.13us  27.917us  172.35us  cudaFree
+                    0.03%  152.56us         3  50.852us  44.585us  60.939us  cudaMemcpyToSymbol
+                    0.02%  116.77us        97  1.2030us     625ns  29.011us  cuDeviceGetAttribute
+                    0.02%  97.972us         1  97.972us  97.972us  97.972us  cudaLaunchKernel
+                    0.00%  9.9480us         1  9.9480us  9.9480us  9.9480us  cudaSetDevice
+                    0.00%  9.0110us         1  9.0110us  9.0110us  9.0110us  cuDeviceTotalMem
+                    0.00%  6.9260us         3  2.3080us  1.2500us  3.3330us  cuDeviceGetCount
+                    0.00%  3.0730us         2  1.5360us  1.1980us  1.8750us  cuDeviceGet
+                    0.00%  2.3950us         1  2.3950us  2.3950us  2.3950us  cuDeviceGetName
+                    0.00%  1.4590us         1  1.4590us  1.4590us  1.4590us  cudaGetDeviceCount
+                    0.00%     990ns         1     990ns     990ns     990ns  cuDeviceGetUuid
+                    0.00%     885ns         1     885ns     885ns     885ns  cudaGetLastError
