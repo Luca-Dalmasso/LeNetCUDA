@@ -29,14 +29,6 @@ else
 	CUDA_FLAGS+=-O2	
 endif
 
-#change L1EN flag to 0 to disable L1 cache
-L1EN=1
-
-ifeq ($(L1EN),1)
-	CUDA_FLAGS+=-Xptxas -dlcm=ca
-else
-	CUDA_FLAGS+=-Xptxas -dlcm=cg
-endif
 
 #AVAILABLE COMMANDS:
 #all: compilation process (DEFAULT)

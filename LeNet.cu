@@ -290,7 +290,7 @@ void printLeNet(Feature *feats, LeNet1 *lenet, FILE *fp)
  */
 
 /*5x5 filters*/
-__device__ inline void deviceConvolveActive(float *in, float *out, float *filter, int isize, int osize)
+__device__  inline void deviceConvolveActive(float *in, float *out, float *filter, int isize, int osize)
 {
 	int tx=threadIdx.x;
 	int ty=threadIdx.y;
@@ -305,7 +305,7 @@ __device__ inline void deviceConvolveActive(float *in, float *out, float *filter
  	}
 }
 
-__device__ inline void deviceAvgPool(float *in, float *out, int isize, int osize)
+__device__  inline void deviceAvgPool(float *in, float *out, int isize, int osize)
 {
 	int tx=threadIdx.x;
 	int ty=threadIdx.y;
@@ -357,10 +357,14 @@ __global__ void deviceForwardV1(float in[LENGTH_FEATURE0*LENGTH_FEATURE0], float
 	if(tx>=LENGTH_FEATURE0 || ty>=LENGTH_FEATURE0) return;
 	//save image in shared
 	image[ty*LENGTH_FEATURE0+tx]=in[ty*LENGTH_FEATURE0+tx];
+	__syncthreads();
 	//LAYER1
-	deviceConvolveActive(image, layer1[0], filtersC1[0], LENGTH_FEATURE0, LENGTH_FEATURE1);
+	deviceConvolveActive(image, layer1[0], filtersC1[0], LENGTH_FEATURE0, LENGTH_FEATURE1);	
+	__syncthreads();
 	deviceConvolveActive(image, layer1[1], filtersC1[1], LENGTH_FEATURE0, LENGTH_FEATURE1);
+	__syncthreads();
 	deviceConvolveActive(image, layer1[2], filtersC1[2], LENGTH_FEATURE0, LENGTH_FEATURE1);
+	__syncthreads();
 	deviceConvolveActive(image, layer1[3], filtersC1[3], LENGTH_FEATURE0, LENGTH_FEATURE1);
 	__syncthreads();
 	//LAYER2
@@ -371,16 +375,27 @@ __global__ void deviceForwardV1(float in[LENGTH_FEATURE0*LENGTH_FEATURE0], float
 	__syncthreads();
 	//LAYER3
 	deviceConvolveActive(layer2[0], layer3[0], filtersC2[0], LENGTH_FEATURE2, LENGTH_FEATURE3);
+	__syncthreads();
 	deviceConvolveActive(layer2[0], layer3[1], filtersC2[1], LENGTH_FEATURE2, LENGTH_FEATURE3);
+	__syncthreads();
 	deviceConvolveActive(layer2[0], layer3[2], filtersC2[2], LENGTH_FEATURE2, LENGTH_FEATURE3);
+	__syncthreads();
 	deviceConvolveActive(layer2[1], layer3[3], filtersC2[0], LENGTH_FEATURE2, LENGTH_FEATURE3);
+	__syncthreads();
 	deviceConvolveActive(layer2[1], layer3[4], filtersC2[1], LENGTH_FEATURE2, LENGTH_FEATURE3);
+	__syncthreads();
 	deviceConvolveActive(layer2[1], layer3[5], filtersC2[2], LENGTH_FEATURE2, LENGTH_FEATURE3);
+	__syncthreads();
 	deviceConvolveActive(layer2[2], layer3[6], filtersC2[0], LENGTH_FEATURE2, LENGTH_FEATURE3);
+	__syncthreads();
 	deviceConvolveActive(layer2[2], layer3[7], filtersC2[1], LENGTH_FEATURE2, LENGTH_FEATURE3);
+	__syncthreads();
 	deviceConvolveActive(layer2[2], layer3[8], filtersC2[2], LENGTH_FEATURE2, LENGTH_FEATURE3);
+	__syncthreads();
 	deviceConvolveActive(layer2[3], layer3[9], filtersC2[0], LENGTH_FEATURE2, LENGTH_FEATURE3);
+	__syncthreads();
 	deviceConvolveActive(layer2[3], layer3[10], filtersC2[1], LENGTH_FEATURE2, LENGTH_FEATURE3);
+	__syncthreads();
 	deviceConvolveActive(layer2[3], layer3[11], filtersC2[2], LENGTH_FEATURE2, LENGTH_FEATURE3);
 	__syncthreads();
 	//LAYER4
@@ -433,10 +448,12 @@ int main()
 	double timeGPU;
 	dim3 block (LENGTH_FEATURE0, LENGTH_FEATURE0);
 	
-	gpuRes=(float *)malloc(OUTPUT*sizeof(float));
-	CHECK_PTR(gpuRes);
-	CHECK_CUDA(cudaMalloc( (void**)&dSource, LENGTH_FEATURE0*LENGTH_FEATURE0*sizeof(float)));
+	//layer1[LAYER1][LENGTH_FEATURE1*LENGTH_FEATURE1]
+	
+	gpuRes=(float *)malloc(LENGTH_FEATURE2*LENGTH_FEATURE2*sizeof(float));
+	//CHECK_PTR(gpuRes);
 	CHECK_CUDA(cudaMalloc( (void**)&dDest, OUTPUT*sizeof(float)));
+	CHECK_CUDA(cudaMalloc( (void**)&dSource, LENGTH_FEATURE0*LENGTH_FEATURE0*sizeof(float)));
 	
 	//copy data on device
 	CHECK_CUDA(cudaMemcpy(dSource, feats->image, LENGTH_FEATURE0*LENGTH_FEATURE0*sizeof(float), cudaMemcpyHostToDevice));
@@ -448,7 +465,7 @@ int main()
 	
 	// device forward propagation
 	timeGPU = cpuSecond();
-    deviceForwardV1<<<28,28>>>(dSource,dDest);
+    deviceForwardV1<<<1,block>>>(dSource,dDest);
     CHECK_CUDA(cudaGetLastError());
 	CHECK_CUDA(cudaDeviceSynchronize());
    	timeGPU = cpuSecond() - timeGPU;
@@ -466,6 +483,14 @@ int main()
 	    printLeNet(feats, lenet, stdout);
 	#endif
 	*/
+	CHECK_CUDA(cudaFree(dSource));
+    CHECK_CUDA(cudaFree(dDest));
+    free(gpuRes);
+    free(lenet);
+    free(feats);
+
+    // reset device
+    CHECK_CUDA(cudaDeviceReset());
 	return 0;
 }
 

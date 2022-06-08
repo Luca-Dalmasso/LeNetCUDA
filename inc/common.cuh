@@ -18,7 +18,7 @@
 /*enable host computations for error checking*/
 #define CHECK 1
 /*maximum difference allowed between a GPU and a CPU result in order to consider them equal (used for fast math intrinsic functions)*/
-#define DELTA 0.0f
+#define DELTA 0.00001f
 /*intrinsic Multiply24*/
 #define IMUL(a,b) (__mul24((a),(b)))
 /*instrinsic single precision fast exponential*/
