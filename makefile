@@ -2,6 +2,11 @@
 #Author: Dalmasso Luca
 #Last modification: 09/06/2022 by Luca
 
+#Maxwell cards
+#SM_50: Tesla/Quadro M series
+#SM_52: Quadro M6000 , GeForce 900, GTX-970, GTX-980, GTX Titan X.
+#SM_53: Tegra (Jetson) TX1 / Tegra X1, Drive CX, Drive PX, Jetson Nano.
+GPU_ARCHITECTURE=sm_53
 #Application name (main.cu file by default)
 NAME=LeNet
 SRC=src/
@@ -10,6 +15,7 @@ BUILD=build/
 DOCS=docs/
 NVCC=/usr/local/cuda/bin/nvcc
 CUDA_FLAGS=--resource-usage
+CUDA_FLAGS+=-arch=sm_53
 DEBUG=0
 FMATH=0
 
@@ -22,7 +28,7 @@ else
 endif
 
 ifeq ($(FMATH),1)
-	CUDA_FLAGS+=--fmad=true
+	CUDA_FLAGS+=--use_fast_math
 endif
 
 .PHONY: all clean docs test
@@ -36,7 +42,7 @@ all: $(BUILD)$(NAME).o $(OBJECTS)
 	@echo $@;
 	$(NVCC)  $^ -o $(NAME)
 	@echo "Generating ptx for main application..";
-	$(NVCC) --ptx -I$(INCLUDES) $(NAME).cu
+	$(NVCC) $(CUDA_FLAGS) --ptx -I$(INCLUDES) $(NAME).cu
 
 $(BUILD)$(NAME).o: $(NAME).cu
 	@echo $@;

@@ -12,34 +12,29 @@
 */
 
 /*enable verbose stdout (disable this when profiling)*/
-#define VERBOSE 1
+#define VERBOSE 0
 /*shared memory padding size (0= no padding, 1= used for 4byte banks, 2=used when shared memory has 8byte banks)*/
 #define IPAD 0
 /*enable host computations for error checking*/
 #define CHECK 1
 /*maximum difference allowed between a GPU and a CPU result in order to consider them equal (used for fast math intrinsic functions)*/
 #define DELTA 0.00001f
-/*intrinsic Multiply24*/
-#define IMUL(a,b) (__mul24((a),(b)))
-/*instrinsic single precision fast exponential*/
-#define FEXP(a) (__expf((a)))
-/*intrinsic single precision fast division*/
-#define FDIV(a,b) (__fdividef((a),(b)))
+/*PTX Unsigned Integer __umul24 instruction*/
+#define UIMUL24(a,b) (__umul24((a),(b)))
+/*PTX Signed Integer __mul24 instruction*/
+#define IMUL24(a,b) (__mul24((a),(b))) 
+/*PTX Unsigned Integer __umad24 instruction*/
+#define UIMAD24(a,b,c) (__umul24((a),(b),(c)))
+/*PTX Signed Integer __mad24 instruction*/
+#define IMAD24(a,b,c) (__mul24((a),(b),(c)))
+
 /** @} */
 
-
-/**
-* @defgroup C typedef for this application
-* @{
-*/
-typedef unsigned char uint_8;
-typedef signed char int_8;
-typedef unsigned int uint_32;
-/** @} */
+typedef unsigned char uint8_t;
 
 /**
  * @brief check if the cuda call correctly worked
- * @param error: return value of a systemcall
+ * example: CHECK_CUDA(cudaMalloc(..));
  */
 #define CHECK_CUDA(call)                                                       \
 {                                                                              \
@@ -57,7 +52,6 @@ typedef unsigned int uint_32;
 
 /**
  * @brief check pointer validity
- * @param ptr: generic pointer
  */
 #define CHECK_PTR(ptr)                                                          \
 {                                                                              	\
@@ -71,29 +65,9 @@ typedef unsigned int uint_32;
 }
 
 /**
- * @brief function to compute upper bound peak global memory bandwidth
- * load and store coalesced and sequential access from global memory (nx*sizeof(T) Bytes)
- * @param src: source array
- * @param dest: destination array
- * @param unsigned int nx: array's index x
- * @param unsigned int ny: array's index y
- */
-__global__ void copyRow (float *src, float* dest, int nx, int ny);
-
-/**
- * @brief function to compute lower bound global memory bandwidth
- * load and store strided non coalesced access from global memory (nx*sizeof(T) Bytes)
- * @param src: source array
- * @param dest :  destination array
- * @param unsigned int nx: array's index x
- * @param unsigned int ny: array's index y
- */
-__global__ void copyCol (float *src, float* dest, int nx, int ny);
-
-/**
  * @brief function that returns a random number in range [0-255]
  */
-uint_8 randomUint8(void);
+uint8_t randomUint8(void);
 
 /**
  * @brief function that returns time in seconds using gettimeofday system call to get system's clock
@@ -109,7 +83,7 @@ double cpuSecond(void);
  * @param ny: number of rows of the matrix (PUT 1 if 1D array)
  * @return 0 if equals, 1 if NOT
  */
-uint_8 checkRes(float *host, float *device, int nx, int ny);
+uint8_t checkRes(float *host, float *device, int nx, int ny);
 
 /**
  * @brief query info from your GPU

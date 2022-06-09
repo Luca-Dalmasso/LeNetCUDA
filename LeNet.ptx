@@ -7,7 +7,7 @@
 //
 
 .version 6.5
-.target sm_30
+.target sm_53
 .address_size 64
 
 	// .globl	_Z15deviceForwardV1PfS_
@@ -1979,7 +1979,6 @@ BB0_39:
 	or.pred  	%p77, %p75, %p73;
 	@%p77 bra 	BB0_41;
 
-	cvta.to.global.u64 	%rd9, %rd2;
 	mov.u32 	%r43, _ZZ15deviceForwardV1PfS_E10tmp_output;
 	mad.lo.s32 	%r44, %r2, 48, %r43;
 	ld.shared.f32 	%f1650, [%r44];
@@ -2024,6 +2023,7 @@ BB0_39:
 	rcp.rn.f32 	%f1687, %f1686;
 	selp.f32	%f1688, 0f3F800000, %f1687, %p78;
 	selp.f32	%f1689, 0f00000000, %f1688, %p79;
+	cvta.to.global.u64 	%rd9, %rd2;
 	mul.wide.s32 	%rd10, %r2, 4;
 	add.s64 	%rd11, %rd9, %rd10;
 	st.global.f32 	[%rd11], %f1689;
