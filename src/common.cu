@@ -4,7 +4,7 @@
  * @see ../inc/common.h
  */
  
-#include "../inc/common.cuh"
+#include "common.cuh"
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/time.h>

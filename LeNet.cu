@@ -2,8 +2,8 @@
 
 #include <stdio.h>
 #include <math.h>
-#include "./inc/common.cuh"
-#include "./inc/LeNet.cuh"
+#include "common.cuh"
+#include "LeNet.cuh"
 
 
 //sigmoid
@@ -43,7 +43,6 @@ __host__ void hostConvolveActive(float *in, float *out, float *filter, int fsize
 	float sum = 0;
    	int center = (fsize>>1);
    	int ii, jj;
-   	int oi,oj;
 
    	for (int i = center, oi=0; i<(isize-center);oi++, i++){
      	for (int j = center, oj=0; j<(isize-center);oj++, j++){
@@ -493,16 +492,3 @@ int main()
     CHECK_CUDA(cudaDeviceReset());
 	return 0;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
