@@ -1,25 +1,17 @@
 
 #Author: Dalmasso Luca
-#Last modification: 28/05/2022 by Luca
+#Last modification: 09/06/2022 by Luca
 
 #Application name (main.cu file by default)
 NAME=LeNet
-#Source path (.cu)
 SRC=src/
-#Headers path (.h)
 INCLUDES=inc/
-#Build path (.o)
 BUILD=build/
-#Software documentation path (html and LaTex format only)
 DOCS=docs/
-#CUDA compiler path
 NVCC=/usr/local/cuda/bin/nvcc
-
-
-#COMPILE FLAGS
-CUDA_FLAGS=
-#change DEBUG flag to 0 to disable debug simbols (DO NOT ENABLE DEBUG SIMBOLS WHEN PROFILING)
+CUDA_FLAGS=--resource-usage
 DEBUG=0
+FMATH=0
 
 ifeq ($(DEBUG),1)
 	CUDA_FLAGS+=-g
@@ -29,27 +21,22 @@ else
 	CUDA_FLAGS+=-O2	
 endif
 
+ifeq ($(FMATH),1)
+	CUDA_FLAGS+=--fmad=true
+endif
 
-#AVAILABLE COMMANDS:
-#all: compilation process (DEFAULT)
-#clean: cleaning process will clean build/ (TO BE EXPLICITLY CALLED es: make clean)
-#docs: build documantation in html and LaTex, documentation will be saved in docs/, (TO BE EXPLICITLY CALLED es: make docs)
-#test: just used to check that all paths are correct (TO BE EXPLICITLY CALLED es: make test)
 .PHONY: all clean docs test
 
-#list of all CUDA source files
 SOURCES=$(wildcard $(SRC)*.cu)
-#redirect the sources path to build/
 BUILD_PATH=$(subst $(SRC),$(BUILD),$(SOURCES))
-#path where object files are going to be placed
 OBJECTS=$(patsubst %.cu, %.o, $(BUILD_PATH))
-#list of all header files
 HEADERS=$(wildcard $(INCLUDES)*.h)
 	
-#default commands (compilation)
 all: $(BUILD)$(NAME).o $(OBJECTS)
 	@echo $@;
-	$(NVCC) $^ -o $(NAME)
+	$(NVCC)  $^ -o $(NAME)
+	@echo "Generating ptx for main application..";
+	$(NVCC) --ptx -I$(INCLUDES) $(NAME).cu
 
 $(BUILD)$(NAME).o: $(NAME).cu
 	@echo $@;
@@ -59,19 +46,16 @@ $(BUILD)%.o: $(SRC)%.cu $(HEADERS)
 	@echo $@;
 	$(NVCC) $(CUDA_FLAGS) -I$(INCLUDES) -c $< -o $@
 
-#docs command
 docs: Doxifile $(HEADERS) $(SOURCES)
 	@echo $@;
 	doxygen $<
-	
-#test command
+
 test:
 	@echo "SOURCES: $(SOURCES)";
 	@echo "OBJECTS: $(OBJECTS)";
 	@echo "HEADERS: $(HEADERS)";
 	@echo "CUDA FLAGS: $(CUDA_FLAGS)";
 
-#clean command
 clean:
 	@echo $@;
 	rm -rf $(BUILD)*
