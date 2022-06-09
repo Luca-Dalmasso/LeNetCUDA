@@ -36,7 +36,7 @@ endif
 SOURCES=$(wildcard $(SRC)*.cu)
 BUILD_PATH=$(subst $(SRC),$(BUILD),$(SOURCES))
 OBJECTS=$(patsubst %.cu, %.o, $(BUILD_PATH))
-HEADERS=$(wildcard $(INCLUDES)*.h)
+HEADERS=$(wildcard $(INCLUDES)*.cuh)
 	
 all: $(BUILD)$(NAME).o $(OBJECTS)
 	@echo $@;
@@ -52,9 +52,9 @@ $(BUILD)%.o: $(SRC)%.cu $(HEADERS)
 	@echo $@;
 	$(NVCC) $(CUDA_FLAGS) -I$(INCLUDES) -c $< -o $@
 
-docs: Doxifile $(HEADERS) $(SOURCES)
+docs: ./Doxyfile $(HEADERS) $(SOURCES) $(NAME).cu
 	@echo $@;
-	doxygen $<
+	doxygen $(HEADERS)
 
 test:
 	@echo "SOURCES: $(SOURCES)";
@@ -67,5 +67,7 @@ clean:
 	rm -rf $(BUILD)*
 	rm -f $(NAME).o
 	rm -f $(NAME)
+	rm -f $(NAME).ptx
+	rm -rf  $(DOCS)/
 
 	

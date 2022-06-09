@@ -546,9 +546,9 @@ int main()
 	
 	FILE *RES,*PER;
 	
-	RES=fopen("running-results.txt","w");
+	RES=fopen("./logs/running-results.txt","w");
 	CHECK_PTR(RES);
-	PER=fopen("running-performances.txt","w");
+	PER=fopen("./logs/running-performances.txt","w");
 	CHECK_PTR(PER);
 	
 	double timesCPU[FORWARD_CYCLES+1];
