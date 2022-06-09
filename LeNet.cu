@@ -534,7 +534,7 @@ __global__ void deviceForwardV1(float in[LENGTH_FEATURE0*LENGTH_FEATURE0], float
 
 /**MAIN*/
 
-#define FORWARD_CYCLES 50000
+#define FORWARD_CYCLES 10
 int main()
 {
 	initCUDA();
@@ -571,12 +571,12 @@ int main()
 	CHECK_CUDA(cudaMemcpyToSymbol(filtersC2, weights->filters2, sizeof(filtersC2)));
 	CHECK_CUDA(cudaMemcpyToSymbol(filtersC3, weights->filters3, sizeof(filtersC3)));
 	
-	fprintf(stdout,"CPU time (s),GPU time (s), Cycle\n");
+	fprintf(PER,"CPU time (s),GPU time (s), Cycle\n");
 	for(int i=0; i<FORWARD_CYCLES; i++)
 	{
 		// host forward propagation
-		timesCPU[i]=cpuSecond();
 		initImage(feats->image); //Get new image
+		timesCPU[i]=cpuSecond();
 		hostForward(feats, weights);
 		timesCPU[i]=cpuSecond()-timesCPU[i];
 		totTimeCPU+=timesCPU[i];
