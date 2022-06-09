@@ -534,7 +534,7 @@ __global__ void deviceForwardV1(float in[LENGTH_FEATURE0*LENGTH_FEATURE0], float
 
 /**MAIN*/
 
-#define FORWARD_CYCLES 10
+#define FORWARD_CYCLES 50000
 int main()
 {
 	initCUDA();
