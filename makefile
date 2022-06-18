@@ -52,9 +52,9 @@ $(BUILD)%.o: $(SRC)%.cu $(HEADERS)
 	@echo $@;
 	$(NVCC) $(CUDA_FLAGS) -I$(INCLUDES) -c $< -o $@
 
-docs: ./Doxyfile $(HEADERS) $(SOURCES) $(NAME).cu
-	@echo $@;
-	doxygen $(HEADERS)
+#docs: ./Doxyfile $(HEADERS) $(SOURCES) $(NAME).cu
+#	@echo $@;
+#	doxygen ./Doxyfile
 
 test:
 	@echo "SOURCES: $(SOURCES)";
@@ -68,6 +68,5 @@ clean:
 	rm -f $(NAME).o
 	rm -f $(NAME)
 	rm -f $(NAME).ptx
-	rm -rf  $(DOCS)/
 
 	
