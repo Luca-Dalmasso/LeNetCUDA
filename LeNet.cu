@@ -21,8 +21,8 @@ __host__ __device__ static inline float sigmoid(float a)
 
 /**
  * @brief Host Average Pooling Algorithm, Tile 2x2, Stride 2
- * @param *in: input matrix
- * @param *out: output matrix
+ * @param in: input matrix
+ * @param out: output matrix
  * @param isize: input matrix size
  * @param osize: output matrix size
  */
@@ -50,9 +50,9 @@ __host__ void hostAvgPool(float *in, float *out, int isize, int osize)
 
 /**
  * @brief Host Convolution Algorithm embedded with bias and activation
- * @param *in: input matrix
- * @param *out: output matrix
- * @param *filter: convolution filter
+ * @param in: input matrix
+ * @param out: output matrix
+ * @param filter: convolution filter
  * @param fsize: convolution filter size
  * @param isize: input matrix size
  * @param osize: output matrix size
@@ -105,7 +105,7 @@ __host__ static Weigths* initFilters()
 
 /**
  * @brief fill Feature0 (input image) with random values
- * @param *image: input image 28x28
+ * @param image: input image 28x28
  */
 __host__ static void initImage(float image[LENGTH_FEATURE0*LENGTH_FEATURE0])
 {
@@ -130,8 +130,8 @@ __host__ static Feature* initFeat()
 /**
  * @brief Host Forward Propagation LAYER1
  * convolution layer C1: IMAGE --> C1 --> LAYER1 composed of 4 features 24x24 each
- * @param *feats: feature type
- * @param *weights: weights type
+ * @param feats: feature type
+ * @param weights: weights type
  */
 __host__ void hostLayer1(Feature *feats, Weigths *weights)
 {
@@ -144,8 +144,8 @@ __host__ void hostLayer1(Feature *feats, Weigths *weights)
 /**
  * @brief Host Forward Propagation LAYER2
  * pooling layer, first downsampling layer: LAYER1-->S1-->LAYER2 composed of 4 features 12x12 each
- * @param *feats: feature type
- * @param *weights: weights type
+ * @param feats: feature type
+ * @param weights: weights type
  */
 __host__ void hostLayer2(Feature *feats,  Weigths *weights)
 {
@@ -158,8 +158,8 @@ __host__ void hostLayer2(Feature *feats,  Weigths *weights)
 /**
  * @brief Host Forward Propagation LAYER3
  * convolution layer C2: LAYER2-->C2-->LAYER3 composed of 12 features 8x8 each
- * @param *feats: feature type
- * @param *weights: weights type
+ * @param feats: feature type
+ * @param weights: weights type
  */
 __host__ void hostLayer3(Feature *feats, Weigths *weights)
 {
@@ -180,8 +180,8 @@ __host__ void hostLayer3(Feature *feats, Weigths *weights)
 /**
  * @brief Host Forward Propagation LAYER4
  * pooling layer, second downsampling layer: LAYER3-->S2-->LAYER4 composed of 12 features 4x4 each
- * @param *feats: feature type
- * @param *weights: weights type
+ * @param feats: feature type
+ * @param weights: weights type
  */
 __host__ void hostLayer4(Feature *feats, Weigths *weights)
 {
@@ -202,8 +202,8 @@ __host__ void hostLayer4(Feature *feats, Weigths *weights)
 /**
  * @brief Host Forward Propagation LAYER5
  * convolution layer C3: LAYER4 -->C3-->LAYER5 (OUTPUT Layer) 10 output values
- * @param *feats: feature type
- * @param *weights: weights type
+ * @param feats: feature type
+ * @param weights: weights type
  */
 __host__ void hostOutputEval(Feature *feats, Weigths *weights)
 {
@@ -228,8 +228,8 @@ __host__ void hostOutputEval(Feature *feats, Weigths *weights)
 /**
  * @brief Host Forward Propagation
  * LAYER1 + LAYER2 + LAYER3 + LAYER4 + LAYER5
- * @param *feats: feature type
- * @param *weights: weights type
+ * @param feats: feature type
+ * @param weights: weights type
  */
 __host__ void hostForward(Feature *feats, Weigths *weights)
 {
@@ -247,9 +247,9 @@ __host__ void hostForward(Feature *feats, Weigths *weights)
 
 /**
  * @brief print on file the entire LeNet data type
- * @param *feats: feature type
- * @param *weights: weights type
- * @param *fp: file pointer
+ * @param feats: feature type
+ * @param weights: weights type
+ * @param fp: file pointer
  */
 void printLeNet(Feature *feats, Weigths *weights, FILE *fp)
 {
@@ -366,9 +366,9 @@ void printLeNet(Feature *feats, Weigths *weights, FILE *fp)
 
 /**
  * @brief Device Convolution Algorithm embedded with bias and activation
- * @param *in: input matrix
- * @param *out: output matrix
- * @param *filter: convolution filter
+ * @param in: input matrix
+ * @param out: output matrix
+ * @param filter: convolution filter
  * @param isize: input matrix size
  * @param osize: output matrix size
  * @warning: input filter is not part of input parameters because it's expected to be 5x5!
@@ -391,8 +391,8 @@ __device__  inline void deviceConvolveActive(float *in, float *out, float *filte
 
 /**
  * @brief Device Average Pooling Algorithm, Tile 2x2, Stride 2
- * @param *in: input matrix
- * @param *out: output matrix
+ * @param in: input matrix
+ * @param out: output matrix
  * @param isize: input matrix size
  * @param osize: output matrix size
  */
@@ -417,8 +417,8 @@ __device__  inline void deviceAvgPool(float *in, float *out, int isize, int osiz
 
 /**
  * @brief Device Convolution Algorithm for a single pixel with a 4x4 filter
- * @param *in: input pixel
- * @param *filter: convolution filter
+ * @param in: input pixel
+ * @param filter: convolution filter
  * @return sum: convoluted filter (NOT YET BIASED NOR ACTIVATED)
  * @warning: input filter is not part of input parameters because it's expected to be 4x4!
  */
@@ -441,8 +441,8 @@ __constant__ float filtersC3[C3][LENGTH_KERNEL1*LENGTH_KERNEL1];
 /**
  * @brief Device forward propagation algorithm
  * LAYER1+LAYER2+LAYER3+LAYER4+LAYER5
- * @param *in: feature 0 (input image) [GLOBAL MEMORY]
- * @param *out: output layer
+ * @param in: feature 0 (input image) [GLOBAL MEMORY]
+ * @param out: output layer
  * @warning: this kernel contains a lot of synchronization points in the code
  * some of them are mandatory, others are used to avoid that the threads run out of resources at runtime
  * you can try to remove some of those synchronization points with care..in that case the application might crash

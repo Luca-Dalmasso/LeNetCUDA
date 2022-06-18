@@ -1,6 +1,6 @@
 /**
  * @file common.cu
- * @see ../inc/common.h
+ * @see ../inc/common.cuh
  */
  
 #include "common.cuh"
