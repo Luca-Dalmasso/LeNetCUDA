@@ -5,7 +5,7 @@
 ==29656== Event result:
 Invocations                                Event Name         Min         Max         Avg       Total
 Device "NVIDIA Tegra X1 (0)"
-    Kernel: deviceForwardV1(float*, float*)
+    Kernel: deviceForwardV3(float*, float*)
           1                   shared_ld_bank_conflict         160         160         160         160
           1                   shared_st_bank_conflict           0           0           0           0
 

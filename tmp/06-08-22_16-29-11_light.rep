@@ -3,7 +3,7 @@
 ==29358== Profiling application: ./LeNet
 ==29358== Profiling result:
             Type  Time(%)      Time     Calls       Avg       Min       Max  Name
- GPU activities:   89.66%  215.08us         1  215.08us  215.08us  215.08us  deviceForwardV1(float*, float*)
+ GPU activities:   89.66%  215.08us         1  215.08us  215.08us  215.08us  deviceForwardV3(float*, float*)
                     7.36%  17.666us         4  4.4160us  2.7610us  8.4420us  [CUDA memcpy HtoD]
                     2.98%  7.1400us         1  7.1400us  7.1400us  7.1400us  [CUDA memcpy DtoH]
       API calls:   70.02%  334.80ms         2  167.40ms  21.772us  334.77ms  cudaMalloc

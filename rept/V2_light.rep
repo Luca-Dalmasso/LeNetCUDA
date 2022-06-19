@@ -1,0 +1,23 @@
+==14381== NVPROF is profiling process 14381, command: ./LeNet
+==14381== Warning: Unified Memory Profiling is not supported on the underlying platform. System requirements for unified memory can be found at: http://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#um-requirements
+==14381== Profiling application: ./LeNet
+==14381== Profiling result:
+            Type  Time(%)      Time     Calls       Avg       Min       Max  Name
+ GPU activities:   79.49%  282.95us         1  282.95us  282.95us  282.95us  deviceForwardV2(Feature*)
+                   12.87%  45.803us         4  11.450us  2.8660us  33.350us  [CUDA memcpy HtoD]
+                    7.64%  27.200us         1  27.200us  27.200us  27.200us  [CUDA memcpy DtoH]
+      API calls:   68.50%  327.98ms         1  327.98ms  327.98ms  327.98ms  cudaMalloc
+                   31.24%  149.58ms         1  149.58ms  149.58ms  149.58ms  cudaDeviceReset
+                    0.07%  332.56us         1  332.56us  332.56us  332.56us  cudaDeviceSynchronize
+                    0.06%  265.84us         3  88.613us  53.074us  155.01us  cudaMemcpyToSymbol
+                    0.05%  222.25us         2  111.12us  69.586us  152.66us  cudaMemcpy
+                    0.04%  187.71us         1  187.71us  187.71us  187.71us  cudaFree
+                    0.03%  130.06us        97  1.3400us     729ns  27.605us  cuDeviceGetAttribute
+                    0.02%  74.586us         1  74.586us  74.586us  74.586us  cudaLaunchKernel
+                    0.00%  10.990us         1  10.990us  10.990us  10.990us  cuDeviceTotalMem
+                    0.00%  10.417us         1  10.417us  10.417us  10.417us  cudaSetDevice
+                    0.00%  7.9680us         3  2.6560us  1.4580us  3.6980us  cuDeviceGetCount
+                    0.00%  3.5940us         2  1.7970us  1.6670us  1.9270us  cuDeviceGet
+                    0.00%  2.4480us         1  2.4480us  2.4480us  2.4480us  cuDeviceGetName
+                    0.00%  1.9800us         1  1.9800us  1.9800us  1.9800us  cudaGetDeviceCount
+                    0.00%  1.0420us         1  1.0420us  1.0420us  1.0420us  cuDeviceGetUuid

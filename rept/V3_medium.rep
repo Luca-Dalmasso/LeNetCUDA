@@ -1,0 +1,24 @@
+==28563== NVPROF is profiling process 28563, command: ./LeNet
+==28563== Some kernel(s) will be replayed on device 0 in order to collect all events/metrics.
+==28563== Profiling application: ./LeNet
+==28563== Profiling result:
+==28563== Event result:
+Invocations                                Event Name         Min         Max         Avg       Total
+Device "NVIDIA Tegra X1 (0)"
+    Kernel: deviceForwardV3(float*, float*)
+          1                   shared_ld_bank_conflict           0           0           0           0
+          1                   shared_st_bank_conflict           8           8           8           8
+
+==28563== Metric result:
+Invocations                               Metric Name                             Metric Description         Min         Max         Avg
+Device "NVIDIA Tegra X1 (0)"
+    Kernel: deviceForwardV3(float*, float*)
+          1                            gld_efficiency                  Global Memory Load Efficiency     100.00%     100.00%     100.00%
+          1                            gst_efficiency                 Global Memory Store Efficiency      62.50%      62.50%      62.50%
+          1                          gld_transactions                       Global Load Transactions         394         394         394
+          1                          gst_transactions                      Global Store Transactions           2           2           2
+          1      shared_load_transactions_per_request    Shared Memory Load Transactions Per Request    1.026161    1.026161    1.026161
+          1     shared_store_transactions_per_request   Shared Memory Store Transactions Per Request    1.023599    1.023599    1.023599
+          1                         shared_efficiency                       Shared Memory Efficiency      39.93%      39.93%      39.93%
+          1                        achieved_occupancy                             Achieved Occupancy    0.341948    0.341948    0.341948
+          1                         branch_efficiency                              Branch Efficiency     100.00%     100.00%     100.00%
