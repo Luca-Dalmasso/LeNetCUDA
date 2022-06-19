@@ -13,20 +13,27 @@
 
 /** enable verbose stdout (disable this when profiling)*/
 #define VERBOSE 0
+
 /** shared memory padding size (0= no padding, 1= used for 4byte banks, 2=used when shared memory has 8byte banks)*/
 #define IPAD 0
+
 /** enable host computations for error checking*/
 #define CHECK 1
+
 /** maximum difference allowed between a GPU and a CPU result in order to consider them equal (used for fast math intrinsic functions)*/
 #define DELTA 0.00001f
+
 /** PTX Unsigned Integer __umul24 instruction*/
 #define UIMUL24(a,b) (__umul24((a),(b)))
+
 /** PTX Signed Integer __mul24 instruction*/
 #define IMUL24(a,b) (__mul24((a),(b))) 
+
 /** PTX Unsigned Integer __umad24 instruction*/
-#define UIMAD24(a,b,c) (__umul24((a),(b),(c)))
+#define UIMAD24(a,b,c) (__umad24((a),(b),(c)))
+
 /** PTX Signed Integer __mad24 instruction*/
-#define IMAD24(a,b,c) (__mul24((a),(b),(c)))
+#define IMAD24(a,b,c) (__mad24((a),(b),(c)))
 
 /** @} */
 

@@ -85,7 +85,7 @@ typedef struct Feature
 	/** layer4 */
 	float layer4[LAYER4][LENGTH_FEATURE4*LENGTH_FEATURE4];
 	/** layer5(output) */
-	float layer5[OUTPUT][LENGTH_FEATURE5];
+	float layer5[OUTPUT];
 }Feature;
 
 
