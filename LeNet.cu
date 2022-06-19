@@ -8,7 +8,6 @@
 #include "common.cuh"
 #include "LeNet.cuh"
 
-
 /**
  *@brief Sigmoid activation function
  *@param a: input pixel
@@ -221,7 +220,7 @@ __host__ void hostOutputEval(Feature *feats, Weigths *weights)
  				}
      		} 	 		
 		}
-		feats->layer5[j][0]=sigmoid(partial+BIAS);
+		feats->layer5[j]=sigmoid(partial+BIAS);
 	}
 }
 
@@ -359,38 +358,12 @@ void printLeNet(Feature *feats, Weigths *weights, FILE *fp)
 	}
 	fprintf(fp,"OUTPUT: %d Features, size=[%dx%dx%d]:\n",OUTPUT, OUTPUT, LENGTH_FEATURE5, LENGTH_FEATURE5);
 	for(int i=0;i<OUTPUT;i++)
-		fprintf(fp,"%f ", feats->layer5[i][0]);
+		fprintf(fp,"%f ", feats->layer5[i]);
 	fprintf(fp,"\n");	
 }
 
-
 /**
- * @brief Device Convolution Algorithm embedded with bias and activation
- * @param in: input matrix
- * @param out: output matrix
- * @param filter: convolution filter
- * @param isize: input matrix size
- * @param osize: output matrix size
- * @warning: input filter is not part of input parameters because it's expected to be 5x5!
- */
-__device__  inline void deviceConvolveActive(float *in, float *out, float *filter, int isize, int osize)
-{
-	int tx=threadIdx.x;
-	int ty=threadIdx.y;
-	float sum=0.0f;
-	if(tx>=CENTER && tx<isize-CENTER && ty>=CENTER && ty<isize-CENTER) //borders are not considered
-	{ 
-		#pragma unroll(5)
- 		for(int i=0;i<LENGTH_KERNEL0;i++)
- 			#pragma unroll(5)
- 			for(int j=0;j<LENGTH_KERNEL0;j++)
- 				sum+=in[(ty-CENTER+i)*isize+tx-CENTER+j] * filter[(i*LENGTH_KERNEL0)+j];
- 		out[(ty-CENTER)*osize+(tx-CENTER)]=sigmoid(sum + BIAS);
- 	}
-}
-
-/**
- * @brief Device Average Pooling Algorithm, Tile 2x2, Stride 2
+ * @brief Device Average Pooling on Tile 2x2
  * @param in: input matrix
  * @param out: output matrix
  * @param isize: input matrix size
@@ -403,34 +376,14 @@ __device__  inline void deviceAvgPool(float *in, float *out, int isize, int osiz
 	int ox;
 	int oy;
 	float sum=0.0f;
-	if (tx<isize && ty<isize && tx%2==0 && ty%2==0){
-		sum+=in[ty*isize+tx];
-		sum+=in[ty*isize+tx+1];
-		sum+=in[(ty+1)*isize+tx];
-		sum+=in[(ty+1)*isize+tx+1];
-		sum=sum/4.0f;
-		ox=(tx>>1); //resize index for the output matrix 
-		oy=(ty>>1);
-		out[oy*osize+ox]=sum;
-	}	
-}
-
-/**
- * @brief Device Convolution Algorithm for a single pixel with a 4x4 filter
- * @param in: input pixel
- * @param filter: convolution filter
- * @return sum: convoluted filter (NOT YET BIASED NOR ACTIVATED)
- * @warning: input filter is not part of input parameters because it's expected to be 4x4!
- */
-__device__ inline float miniConv(float *in, float *filter)
-{
-	float sum=0.0f;
-	#pragma unroll(4)
- 	for(int i=0;i<LENGTH_KERNEL1;i++)
- 		#pragma unroll(4)
- 		for(int j=0;j<LENGTH_KERNEL1;j++)
- 			sum+=in[i*LENGTH_FEATURE4+j] * filter[i*LENGTH_KERNEL1+j];
- 	return sum;
+	sum+=in[ty*isize+tx];
+	sum+=in[ty*isize+tx+1];
+	sum+=in[(ty+1)*isize+tx];
+	sum+=in[(ty+1)*isize+tx+1];
+	sum=sum/4.0f;
+	ox=(tx>>1); //resize index for the output matrix 
+	oy=(ty>>1);
+	out[oy*osize+ox]=sum;	
 }
 
 /**filters, struct Weights unpacked in constant memory */
@@ -439,8 +392,7 @@ __constant__ float filtersC2[C2][LENGTH_KERNEL0*LENGTH_KERNEL0];
 __constant__ float filtersC3[C3][LENGTH_KERNEL1*LENGTH_KERNEL1];
 
 /**
- * @brief Device forward propagation algorithm
- * LAYER1+LAYER2+LAYER3+LAYER4+LAYER5
+ * @brief Device forward propagation algorithm shared + constant memory version
  * @param in: feature 0 (input image) [GLOBAL MEMORY]
  * @param out: output layer
  * @warning: this kernel contains a lot of synchronization points in the code
@@ -448,9 +400,9 @@ __constant__ float filtersC3[C3][LENGTH_KERNEL1*LENGTH_KERNEL1];
  * you can try to remove some of those synchronization points with care..in that case the application might crash
  * probably because at a certain point there are too many threads concurrenly active and they will use all the registers available in the SM..
  */
-__global__ void deviceForwardV1(float in[LENGTH_FEATURE0*LENGTH_FEATURE0], float out[OUTPUT])
+__global__ void deviceForwardV3(float in[LENGTH_FEATURE0*LENGTH_FEATURE0], float out[OUTPUT])
 {
-	/**features, struct Feature unpacked in shared memory */
+	//features, struct Feature unpacked in shared memory
 	__shared__ float image[LENGTH_FEATURE0*LENGTH_FEATURE0];
 	__shared__ float layer1[LAYER1][LENGTH_FEATURE1*LENGTH_FEATURE1];
 	__shared__ float layer2[LAYER2][LENGTH_FEATURE2*LENGTH_FEATURE2];
@@ -460,81 +412,134 @@ __global__ void deviceForwardV1(float in[LENGTH_FEATURE0*LENGTH_FEATURE0], float
 	
 	int tx=threadIdx.x;
 	int ty=threadIdx.y;
-	float finalResult=0.0f;
+	float finalResult;
+	float sum[12];
 	
 	if(tx>=LENGTH_FEATURE0 || ty>=LENGTH_FEATURE0) return;
-	/**Copy feature0 from global memory to shared*/
+	
+	//LAYER0 raw copy in shared memory
 	image[ty*LENGTH_FEATURE0+tx]=in[ty*LENGTH_FEATURE0+tx];
 	__syncthreads();
-	//LAYER1
-	deviceConvolveActive(image, layer1[0], filtersC1[0], LENGTH_FEATURE0, LENGTH_FEATURE1);	
+	
+	//LAYER1: C1 convolutional layer
+	if(tx>=CENTER && tx<LENGTH_FEATURE0-CENTER && ty>=CENTER && ty<LENGTH_FEATURE0-CENTER) //borders are not considered
+	{ 
+		#pragma unroll(5)
+ 		for(int i=0;i<LENGTH_KERNEL0;i++)
+ 		{
+ 			#pragma unroll(5)
+ 			for(int j=0;j<LENGTH_KERNEL0;j++)
+ 			{
+ 				sum[0]+=image[(ty-CENTER+i)*LENGTH_FEATURE0+tx-CENTER+j] * filtersC1[0][(i*LENGTH_KERNEL0)+j];
+ 				sum[1]+=image[(ty-CENTER+i)*LENGTH_FEATURE0+tx-CENTER+j] * filtersC1[1][(i*LENGTH_KERNEL0)+j];
+ 				sum[2]+=image[(ty-CENTER+i)*LENGTH_FEATURE0+tx-CENTER+j] * filtersC1[2][(i*LENGTH_KERNEL0)+j];
+ 				sum[3]+=image[(ty-CENTER+i)*LENGTH_FEATURE0+tx-CENTER+j] * filtersC1[3][(i*LENGTH_KERNEL0)+j];
+ 			}
+ 		}
+ 		layer1[0][(ty-CENTER)*LENGTH_FEATURE1+(tx-CENTER)]=sigmoid(sum[0] + BIAS);
+ 		layer1[1][(ty-CENTER)*LENGTH_FEATURE1+(tx-CENTER)]=sigmoid(sum[1] + BIAS);
+ 		layer1[2][(ty-CENTER)*LENGTH_FEATURE1+(tx-CENTER)]=sigmoid(sum[2] + BIAS);
+ 		layer1[3][(ty-CENTER)*LENGTH_FEATURE1+(tx-CENTER)]=sigmoid(sum[3] + BIAS);
+ 	}
 	__syncthreads();
-	deviceConvolveActive(image, layer1[1], filtersC1[1], LENGTH_FEATURE0, LENGTH_FEATURE1);
-	__syncthreads();
-	deviceConvolveActive(image, layer1[2], filtersC1[2], LENGTH_FEATURE0, LENGTH_FEATURE1);
-	__syncthreads();
-	deviceConvolveActive(image, layer1[3], filtersC1[3], LENGTH_FEATURE0, LENGTH_FEATURE1);
-	__syncthreads();
-	//LAYER2
-	deviceAvgPool(layer1[0], layer2[0], LENGTH_FEATURE1, LENGTH_FEATURE2);
-	deviceAvgPool(layer1[1], layer2[1], LENGTH_FEATURE1, LENGTH_FEATURE2);
-	deviceAvgPool(layer1[2], layer2[2], LENGTH_FEATURE1, LENGTH_FEATURE2);
-	deviceAvgPool(layer1[3], layer2[3], LENGTH_FEATURE1, LENGTH_FEATURE2);
-	__syncthreads();
-	//LAYER3
-	deviceConvolveActive(layer2[0], layer3[0], filtersC2[0], LENGTH_FEATURE2, LENGTH_FEATURE3);
-	__syncthreads();
-	deviceConvolveActive(layer2[0], layer3[1], filtersC2[1], LENGTH_FEATURE2, LENGTH_FEATURE3);
-	__syncthreads();
-	deviceConvolveActive(layer2[0], layer3[2], filtersC2[2], LENGTH_FEATURE2, LENGTH_FEATURE3);
-	__syncthreads();
-	deviceConvolveActive(layer2[1], layer3[3], filtersC2[0], LENGTH_FEATURE2, LENGTH_FEATURE3);
-	__syncthreads();
-	deviceConvolveActive(layer2[1], layer3[4], filtersC2[1], LENGTH_FEATURE2, LENGTH_FEATURE3);
-	__syncthreads();
-	deviceConvolveActive(layer2[1], layer3[5], filtersC2[2], LENGTH_FEATURE2, LENGTH_FEATURE3);
-	__syncthreads();
-	deviceConvolveActive(layer2[2], layer3[6], filtersC2[0], LENGTH_FEATURE2, LENGTH_FEATURE3);
-	__syncthreads();
-	deviceConvolveActive(layer2[2], layer3[7], filtersC2[1], LENGTH_FEATURE2, LENGTH_FEATURE3);
-	__syncthreads();
-	deviceConvolveActive(layer2[2], layer3[8], filtersC2[2], LENGTH_FEATURE2, LENGTH_FEATURE3);
-	__syncthreads();
-	deviceConvolveActive(layer2[3], layer3[9], filtersC2[0], LENGTH_FEATURE2, LENGTH_FEATURE3);
-	__syncthreads();
-	deviceConvolveActive(layer2[3], layer3[10], filtersC2[1], LENGTH_FEATURE2, LENGTH_FEATURE3);
-	__syncthreads();
-	deviceConvolveActive(layer2[3], layer3[11], filtersC2[2], LENGTH_FEATURE2, LENGTH_FEATURE3);
-	__syncthreads();
-	//LAYER4
-	deviceAvgPool(layer3[0], layer4[0], LENGTH_FEATURE3, LENGTH_FEATURE4);
-	deviceAvgPool(layer3[1], layer4[1], LENGTH_FEATURE3, LENGTH_FEATURE4);
-	deviceAvgPool(layer3[2], layer4[2], LENGTH_FEATURE3, LENGTH_FEATURE4);
-	deviceAvgPool(layer3[3], layer4[3], LENGTH_FEATURE3, LENGTH_FEATURE4);
-	deviceAvgPool(layer3[4], layer4[4], LENGTH_FEATURE3, LENGTH_FEATURE4);
-	deviceAvgPool(layer3[5], layer4[5], LENGTH_FEATURE3, LENGTH_FEATURE4);
-	deviceAvgPool(layer3[6], layer4[6], LENGTH_FEATURE3, LENGTH_FEATURE4);
-	deviceAvgPool(layer3[7], layer4[7], LENGTH_FEATURE3, LENGTH_FEATURE4);
-	deviceAvgPool(layer3[8], layer4[8], LENGTH_FEATURE3, LENGTH_FEATURE4);
-	deviceAvgPool(layer3[9], layer4[9], LENGTH_FEATURE3, LENGTH_FEATURE4);
-	deviceAvgPool(layer3[10], layer4[10], LENGTH_FEATURE3, LENGTH_FEATURE4);
-	deviceAvgPool(layer3[11], layer4[11], LENGTH_FEATURE3, LENGTH_FEATURE4);
-	__syncthreads();
-	//OUTPUT
-	if(tx<LAYER4 && ty<OUTPUT)
-		tmp_output[ty][tx]=miniConv(layer4[tx], filtersC3[ty]);
-	__syncthreads();
-	if(tx==0 && ty<OUTPUT){
-		for(int i=0;i<LAYER4;i++)
-			finalResult+=tmp_output[ty][i];
-		out[ty]=sigmoid(finalResult+BIAS);	
+	
+	//LAYER2: P1 pooling layer
+	if (tx<LENGTH_FEATURE1 && ty<LENGTH_FEATURE1 && tx%2==0 && ty%2==0)
+	{
+		deviceAvgPool(layer1[0], layer2[0], LENGTH_FEATURE1, LENGTH_FEATURE2);
+		deviceAvgPool(layer1[1], layer2[1], LENGTH_FEATURE1, LENGTH_FEATURE2);
+		deviceAvgPool(layer1[2], layer2[2], LENGTH_FEATURE1, LENGTH_FEATURE2);
+		deviceAvgPool(layer1[3], layer2[3], LENGTH_FEATURE1, LENGTH_FEATURE2);
 	}
+	__syncthreads();
+	
+	//LAYER3: C2 convolutional layer
+	if(tx>=CENTER && tx<LENGTH_FEATURE2-CENTER && ty>=CENTER && ty<LENGTH_FEATURE2-CENTER) //borders are not considered
+	{ 
+		#pragma unroll(12)
+		for(int i=0;i<12;i++)
+			sum[i]=0.0f;
+		#pragma unroll(5)
+ 		for(int i=0;i<LENGTH_KERNEL0;i++)
+ 		{
+ 			#pragma unroll(5)
+ 			for(int j=0;j<LENGTH_KERNEL0;j++)
+ 			{
+ 				sum[0]+=layer2[0][(ty-CENTER+i)*LENGTH_FEATURE2+tx-CENTER+j] * filtersC2[0][(i*LENGTH_KERNEL0)+j];
+ 				sum[1]+=layer2[0][(ty-CENTER+i)*LENGTH_FEATURE2+tx-CENTER+j] * filtersC2[1][(i*LENGTH_KERNEL0)+j];
+ 				sum[2]+=layer2[0][(ty-CENTER+i)*LENGTH_FEATURE2+tx-CENTER+j] * filtersC2[2][(i*LENGTH_KERNEL0)+j];
+ 				sum[3]+=layer2[1][(ty-CENTER+i)*LENGTH_FEATURE2+tx-CENTER+j] * filtersC2[0][(i*LENGTH_KERNEL0)+j];
+ 				sum[4]+=layer2[1][(ty-CENTER+i)*LENGTH_FEATURE2+tx-CENTER+j] * filtersC2[1][(i*LENGTH_KERNEL0)+j];
+ 				sum[5]+=layer2[1][(ty-CENTER+i)*LENGTH_FEATURE2+tx-CENTER+j] * filtersC2[2][(i*LENGTH_KERNEL0)+j];
+ 				sum[6]+=layer2[2][(ty-CENTER+i)*LENGTH_FEATURE2+tx-CENTER+j] * filtersC2[0][(i*LENGTH_KERNEL0)+j];
+ 				sum[7]+=layer2[2][(ty-CENTER+i)*LENGTH_FEATURE2+tx-CENTER+j] * filtersC2[1][(i*LENGTH_KERNEL0)+j];
+ 				sum[8]+=layer2[2][(ty-CENTER+i)*LENGTH_FEATURE2+tx-CENTER+j] * filtersC2[2][(i*LENGTH_KERNEL0)+j];
+ 				sum[9]+=layer2[3][(ty-CENTER+i)*LENGTH_FEATURE2+tx-CENTER+j] * filtersC2[0][(i*LENGTH_KERNEL0)+j];
+ 				sum[10]+=layer2[3][(ty-CENTER+i)*LENGTH_FEATURE2+tx-CENTER+j] * filtersC2[1][(i*LENGTH_KERNEL0)+j];
+ 				sum[11]+=layer2[3][(ty-CENTER+i)*LENGTH_FEATURE2+tx-CENTER+j] * filtersC2[2][(i*LENGTH_KERNEL0)+j];
+ 			}
+ 		}
+ 		layer3[0][(ty-CENTER)*LENGTH_FEATURE3+(tx-CENTER)]=sigmoid(sum[0] + BIAS);
+ 		layer3[1][(ty-CENTER)*LENGTH_FEATURE3+(tx-CENTER)]=sigmoid(sum[1] + BIAS);
+ 		layer3[2][(ty-CENTER)*LENGTH_FEATURE3+(tx-CENTER)]=sigmoid(sum[2] + BIAS);
+ 		layer3[3][(ty-CENTER)*LENGTH_FEATURE3+(tx-CENTER)]=sigmoid(sum[3] + BIAS);
+ 		layer3[4][(ty-CENTER)*LENGTH_FEATURE3+(tx-CENTER)]=sigmoid(sum[4] + BIAS);
+ 		layer3[5][(ty-CENTER)*LENGTH_FEATURE3+(tx-CENTER)]=sigmoid(sum[5] + BIAS);
+ 		layer3[6][(ty-CENTER)*LENGTH_FEATURE3+(tx-CENTER)]=sigmoid(sum[6] + BIAS);
+ 		layer3[7][(ty-CENTER)*LENGTH_FEATURE3+(tx-CENTER)]=sigmoid(sum[7] + BIAS);
+ 		layer3[8][(ty-CENTER)*LENGTH_FEATURE3+(tx-CENTER)]=sigmoid(sum[8] + BIAS);
+ 		layer3[9][(ty-CENTER)*LENGTH_FEATURE3+(tx-CENTER)]=sigmoid(sum[9] + BIAS);
+ 		layer3[10][(ty-CENTER)*LENGTH_FEATURE3+(tx-CENTER)]=sigmoid(sum[10] + BIAS);
+ 		layer3[11][(ty-CENTER)*LENGTH_FEATURE3+(tx-CENTER)]=sigmoid(sum[11] + BIAS);
+ 	}
+ 	__syncthreads();
+ 	
+	//LAYER4: P2 pooling layer
+	if (tx<LENGTH_FEATURE3 && ty<LENGTH_FEATURE3 && tx%2==0 && ty%2==0)
+	{
+		deviceAvgPool(layer3[0], layer4[0], LENGTH_FEATURE3, LENGTH_FEATURE4);
+		deviceAvgPool(layer3[1], layer4[1], LENGTH_FEATURE3, LENGTH_FEATURE4);
+		deviceAvgPool(layer3[2], layer4[2], LENGTH_FEATURE3, LENGTH_FEATURE4);
+		deviceAvgPool(layer3[3], layer4[3], LENGTH_FEATURE3, LENGTH_FEATURE4);
+		deviceAvgPool(layer3[4], layer4[4], LENGTH_FEATURE3, LENGTH_FEATURE4);
+		deviceAvgPool(layer3[5], layer4[5], LENGTH_FEATURE3, LENGTH_FEATURE4);
+		deviceAvgPool(layer3[6], layer4[6], LENGTH_FEATURE3, LENGTH_FEATURE4);
+		deviceAvgPool(layer3[7], layer4[7], LENGTH_FEATURE3, LENGTH_FEATURE4);
+		deviceAvgPool(layer3[8], layer4[8], LENGTH_FEATURE3, LENGTH_FEATURE4);
+		deviceAvgPool(layer3[9], layer4[9], LENGTH_FEATURE3, LENGTH_FEATURE4);
+		deviceAvgPool(layer3[10], layer4[10], LENGTH_FEATURE3, LENGTH_FEATURE4);
+		deviceAvgPool(layer3[11], layer4[11], LENGTH_FEATURE3, LENGTH_FEATURE4);
+	}
+	__syncthreads();
+	
+	//LAYER5: Fully connected to OUTPUT
+	if(ty<LAYER4 && tx<OUTPUT)
+	{
+		finalResult=0.0f;
+		#pragma unroll(4)
+ 		for(int i=0;i<LENGTH_KERNEL1;i++)
+ 			#pragma unroll(4)
+ 			for(int j=0;j<LENGTH_KERNEL1;j++)
+ 				finalResult+=layer4[ty][i*LENGTH_FEATURE4+j] *  filtersC3[tx][i*LENGTH_KERNEL1+j];
+		tmp_output[tx][ty]=finalResult;
+		__syncthreads();
+		if(ty==0)
+		{
+			finalResult=0.0f;
+			#pragma unroll(12)
+			for(int i=0;i<LAYER4;i++)
+				finalResult+=tmp_output[tx][i];
+			out[tx]=sigmoid(finalResult+BIAS);
+		}
+	}
+	
 }
 
 
 /**MAIN*/
 
 #define FORWARD_CYCLES 50000
+
 int main()
 {
 	initCUDA();
@@ -584,12 +589,14 @@ int main()
 	    // device forward propagation
 		timesGPU[i]=cpuSecond();
 		cudaMemcpy(dSource, feats->image, LENGTH_FEATURE0*LENGTH_FEATURE0*sizeof(float), cudaMemcpyHostToDevice);
-    	deviceForwardV1<<<1,block>>>(dSource,dDest);
-		cudaDeviceSynchronize();
+    	deviceForwardV3<<<1,block>>>(dSource,dDest);
+		//cudaDeviceSynchronize();
+		CHECK_CUDA(cudaGetLastError());
+		CHECK_CUDA(cudaDeviceSynchronize());
 		cudaMemcpy(gpuRes, dDest, OUTPUT*sizeof(float), cudaMemcpyDeviceToHost);
    		timesGPU[i]=cpuSecond()-timesGPU[i];
    		totTimeGPU+=timesGPU[i];
-   		if(checkRes(feats->layer5[0],gpuRes,OUTPUT,1)==1)
+   		if(checkRes(feats->layer5,gpuRes,OUTPUT,1)==1)
    		{
     		fprintf(stderr,"GPU and CPU result missmatch in the %d cycle\n",i);
        		exit(1);
@@ -597,6 +604,7 @@ int main()
 		fprintf(PER,"%f,%f,%d\n",timesCPU[i],timesGPU[i],i);
 	}
 	fprintf(stdout,"\n");
+	
 	fprintf(stdout,"CPU required time for %d cycles of forward propagation is %f (s)\n",FORWARD_CYCLES,totTimeCPU);
 	fprintf(stdout,"GPU required time for %d cycles of forward propagation is %f (s)\n",FORWARD_CYCLES,totTimeGPU);
 
@@ -608,8 +616,12 @@ int main()
     free(gpuRes);
     free(weights);
     free(feats);
+    
+    fclose(PER);
+    fclose(RES);
 
     // reset device
     CHECK_CUDA(cudaDeviceReset());
 	return 0;
 }
+
