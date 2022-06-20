@@ -3,22 +3,16 @@
 %% 
 
 \documentclass[a4paper]{report}
-\usepackage{cite} % Tidies up citation numbers.
-\usepackage{url} % Provides better formatting of URLs.
 \usepackage[utf8]{inputenc} % Allows Turkish characters.
 \usepackage{booktabs} % Allows the use of \toprule, \midrule and \bottomrule in tables for horizontal lines
 \usepackage{graphicx}
 \usepackage{xcolor}
-\usepackage[ruled,vlined,linesnumbered]{algorithm2e}
-% Corrects some bad hyphenation
-\hyphenation{} 
-
 
 
 \begin{document}
 \title{GPU programming \\ LeNet-1 Project Report}
 \author{Dalmasso Luca\\
-        Embedded Systems master degree\\
+        Computer Engineering, Embedded Systems master degree\\
         Politecnico of Turin
         }
 
@@ -262,7 +256,7 @@ The values of the first layer are instead given by the following equation:
 \label{convLayer}
 F^{s}_{x,y} = \sigma (bias + \sum_{u=0}^{4}\sum_{v=0}^{4}K^{s}_{u,v} \cdot I_{x+u,y+v})
  \end{equation}
- \
+
 Where \( F^{s}_{x,y} \) is the (x,y) neuron of the s-th feature, \( \sigma \) is the Sigmoid activation function in the equation (4) that transform the result of convolution (equation (2)) plus a bias term.\\
 The remaining parts of the equation are the term \( K^{s}_{u,v} \) that is the (u,v) weight of the s-th filter, and finally \( I_{x+u,y+v} \) is the (x+u,y+v) pixel of the input image.\\\\\\\\
 \begin{figure}[!h]
@@ -278,10 +272,15 @@ Stated that LeNet-1 has an overall of three convolutional layers and two pooling
 Once the input has been convoluted into four feature maps, each feature map is pooled into 4 corresponding feature maps of 12x12 each.\\
 In the next layer, the third hidden layer, the convolution is done again by the same equation (5) but this time there are only 3 filters 5x5.
 Since the three filters are convoluted on each of the four feature maps, this multiplies the amount of feature maps of the next layer to 12.
-Now the new layer is pooled again and by doing that the last hidden layer is created and the size is reduced from 768 to 192 neurons.
-Finally we are ready to fully connect the twelve 4x4 features to the output, in this case the convolution is done by using 10 4x4 filters to create the last 10 neurons.\\
-The following image can help to understand how the last hidden layer is fully connected to the ouput.
-Just consider that Ki is denoted as the i-th filter over the total 10 and Fj as well is the j-th feature map over the total 12. 
+Now the new layer is pooled again and by doing that the last hidden layer is created and the size is reduced from 768 to 192 neurons that correspond to the last 12 4x4 features in the hidden layers.\\
+To fully connect the last hidden layer to the 10 output neurons one last convolution is used, in particular each \( Out_{i} \) can be computed using this formula:
+\begin{equation} 
+\label{fullyConn}
+Out_{i} = \sigma (bias + \sum_{j=0}^{11}K_{i}  * F_{j})
+ \end{equation}
+ 
+ where \( \sigma \) is the usual Sigmoid, \( K_{i} \) is the i-th filter over the total 10 of the last convolutional layer and  \( F_{j} \) is the j-th feature map of the last hidden layer.\\
+The following image can help to understand how the last hidden layer is fully connected to the ouput:
 
 \begin{figure}[!h]
 \centering
@@ -296,184 +295,201 @@ All the mentioned operations repeated for every neuron inside the network will r
 
 \section{Implementation}
 The board used for implementing and testing the forward propagation algorithm is the NVIDIA Jetson Nano.\\
-First of all the forward propagation was implemented on the CPU (host) to have a reference benchmark to improve of the algorithm executed serially, then the code was ported on the GPU (device).\\
+First of all the forward propagation was implemented on the CPU (host) to have a reference benchmark of the algorithm executed serially, then the code was ported on the GPU (device).\\
 Concerning the device implementation there are three solution proposed:
 \begin{enumerate}
-\item heavy usage of global memory, shared memory and constant memory unused.
-\item light usage of global memory, all computations in shared memory.
+\item heavy usage of global memory, all the weights are saved in global memory and all feature maps are processed in global memory.
+\item filters are moved in constant memory space, in such a way to reduce the global memory usage.
 \item soft usage of global memory, all computations in shared memory, filters in constant memory.
 \end{enumerate}
 
-\subsection{Host implementation \& serial benchmarks}
-The host code is very simple, it serially executes this series of transformations:
+\subsection{CPU implementation \& serial benchmarks}
+The host code is very simple, it serially executes this series of transformation already discussed in the previous sections:
 \[ Image28x28 \mapsto C1_{4x24x24} \mapsto S1_{4x12x12} \mapsto C2_{12x8x8} \mapsto S2_{12x4x4} \mapsto C3_{10x1x1} \mapsto OUTPUT \]
-where \(Ci\) is the i-th convolutional layer , \(Sk\) is the k-th average pooling layer and \( C3_{10x1x1} \) is the last convolutional layer that fully connects to the output.\\
+The following graph is showing the execution times for 10 consecutive forward propagations randomly selected among 50000 recorded executions of the algorithm with random images and random weights:
 
-%\subsection{Setup}
- %A specific angle range have been provided to us from the guys building the flap and we had to match that one with our servo, by acting on the dutycycle length in terms of microseconds (900-1480 is the range we found out).
- 
-%\subsection{Reliability}
-%A watchdog has been inserted in the system to avoid stalls in the running application. Basically, if the system stops acquiring and computing the wanted results for more than 5 seconds, it will be forced to reboot.\\
-%Furthermore, if the IMU sensor loses the calibration, the input for the PID controller is obtained from the average between the 2 distances measured by ultrasonic sensors at stern, averaged again with that from the one at bow.
+\begin{figure}[!h]
+\centering
+\includegraphics[scale=0.5]{docs/hostexec.png} 
+\caption{CPU performance profile}
+\label{fig_hp}
+\end{figure}
 
-%\subsection{Main board peculiarities}
-%We worked with an STM32F411RE board, which is considered as high performance, having a 100MHz Cortex-M4, which allowed us to stress the system by reducing the sample rate without having computation losses, at least talking about milliseconds. We then took advantage of the following features provided by the board: a PWM timer for motor control, up to three I2Cs, used to communicate with the IMU, and five SPIs, exploited to communicate with the RFID reader.
+\subsection{GPU implementations}
+Considering that the propagation through the layers is sequential it is still possible to accelerate the overall performances of the network by speeding-up the internal operations of each layer.\\
+Once the features of the layer \( i \) are ready, all the features of the layer \( i+1 \) can be processed in parallel because each neuron can be computed independently from all others in the same layer.\\
+As introduced before, the implementation starts from a very naïve version that processes data using heavily the global memory, the goal was to move as much as possible the data in shared memory in such a way to reduce as much as possible the amount of global memory transactions.\\
+The algorithm is executed by a single block of 28x28 threads and it is the same in all the 3 versions, the only differences are how the data are arranged in the memories.
 
-%\section{How does the system work}
-%The control system is mounted inside the boat, in particular above the drift, as this is point of interest. The two ultrasonic sensors, mounted at stern, are placed on the side wings. 
-%We use an RFID reader to configure the system's parameters. Two different cards are read in order to set: target height and sensibility threshold.
-%The system maintains one counter for both of them, to modify the settings according to how many times a card was read. 
-%The reading is confirmed by a sound produced by a piezoelectric buzzer, which reproduces a different musical note, depending on the parameter we want to change and the currently selected configuration.
+\subsection{Naïve version benchmarks}
+All filters are saved in global memory, all features are saved in global memory.
+Data arranged like this will produce a lot of transactions because each feature, once computed, needs to be stored in global memory in such a way that can be used to feed the next layer when the propagation moves forward, and also the efficiency of the transaction will not be optimal because of the strided accesses by convolution and pooling operations.\\
+The following metrics were collected by using the profiler:
 
-%In the following figure is shown the schematic of the connections between board and sensors.\\
+\begin{table}[!h]
+\centering
+\begin{tabular}{|l|l|l|l|l|}
+\hline
+\textbf{Kernel Name} & \textbf{load efficiency} & \textbf{store efficiency} & \textbf{load transactions} & \textbf{store transactions} \\ \hline
+deviceForwardV1           & 49.17\%           & 76.15\%           & 124610           & 632       \\ \hline
+\end{tabular}
+\vspace*{3mm}
+\caption{Naïve version Global memory profile}
+\label{table:t1}
+\end{table}
+
+In the following table are shown the performances of the kernel collected again with the profiler.\\
+Note that not only the pure kernel execution time is considered but also the CUDA APIs calls are considered in the final execution time.
+The API calls are the following ones: \( memcpy HostToDevice \) ,  \( memcpyDeviceToHost \) and the \( cudaDeviceSynchronize \).\\
+The total execution time is then the time the processor needs to wait in order to be able to use the GPU results.
+
+\begin{table}[!h]
+\centering
+\begin{tabular}{|r|r|r|r|}
+\hline
+\textbf{Kernel Name} & \textbf{Avg. kernel exec time} & \textbf{Avg. APIs overhead} & \textbf{Avg. total exec time} \\ \hline
+deviceForwardV1           & 370us          & 540us   & 900us\\ \hline
+\end{tabular}
+\vspace*{3mm}
+\caption{Naïve version performances}
+\label{table:t2}
+\end{table}
+
+Is possible to see that even if the algorithm is executed faster on the GPU (370us against 700us in Figure 6) the overall execution time is expected to be on average higher than the CPU one.\\
+The following picture shows a comparison between CPU and Naïve version performances (again using 10 random execution times among a collection of 50000):
+
+\begin{figure}[!h]
+\centering
+\includegraphics[scale=0.5]{docs/cpuVSnaive.png} 
+\caption{CPU vs GPU performances, version 1}
+\label{fig_gpu1}
+\end{figure}
+
+\subsection{Constant memory version benchmarks}
+Considering that once a network is trained all the filters are maintained constant, is possible to take advantage of the Constant Memory.\\
+The only data that needs to be moved in and out form the global memory are then only the features, the profiler already shows a significant reduction of the global transactions:
+
+\begin{table}[!h]
+\centering
+\begin{tabular}{|l|l|l|l|l|}
+\hline
+\textbf{Kernel Name} & \textbf{load efficiency} & \textbf{store efficiency} & \textbf{load transactions} & \textbf{store transactions} \\ \hline
+deviceForwardV2           & 59.45\%           & 76.15\%           & 64610           & 632       \\ \hline
+\end{tabular}
+\vspace*{3mm}
+\caption{Constant memory version Global memory profile}
+\label{table:t3}
+\end{table}
+
+The performances are now expected to be better, in fact the profiler shows the following results:
+
+\begin{table}[!h]
+\centering
+\begin{tabular}{|r|r|r|r|}
+\hline
+\textbf{Kernel Name} & \textbf{Avg. kernel exec time} & \textbf{Avg. APIs overhead} & \textbf{Avg. total exec time} \\ \hline
+deviceForwardV2           & 283us          & 370us   & 650us\\ \hline
+\end{tabular}
+\vspace*{3mm}
+\caption{Constant memory  performances}
+\label{table:t4}
+\end{table}
+
+The new version is roughly 30\% faster than the Naïve one but even if overall execution time is not much better that the CPU's.\\ 
+The results confirms that the approach of reducing the global memory usage is the right one!\\
+
+\begin{figure}[!h]
+\centering
+\includegraphics[scale=0.5]{docs/cpuVSconstant.png} 
+\caption{CPU vs GPU performances, version 2}
+\label{fig_gpu2}
+\end{figure}
+
+\subsection{Shared \& Constant memory version benchmarks}
+This is the final implementation of the algorithm, in the previous one the filters have been removed from global memory, now considering that:
+
+\begin{enumerate}
+\item there is only a single block running on the GPU, this means that all threads can easily work together using the same data in shared memory.
+\item all the features together occupy a total amount of: \( (4x24x24 + 4x12x12 + 12x8x8 + 12x4x4) \cdot 4  \approx 16 Kbytes\), our device has 49 Kbytes of shared memory per block so the entire features can be stored in shared memory.
+\item the kernel just needs the input image and needs to provide to the CPU just the output layer.
+\end{enumerate}
+
+all the computations can be done using just the shared + constant memory, the overall usage of global memory is negligible because only transactions issued are for loading the input layer in shared memory and storing the output layer in global memory:
+
+\begin{table}[!h]
+\centering
+\begin{tabular}{|l|l|l|l|l|}
+\hline
+\textbf{Kernel Name} & \textbf{load efficiency} & \textbf{store efficiency} & \textbf{load transactions} & \textbf{store transactions} \\ \hline
+deviceForwardV3           & 100.00\%           & 62.50\%           & 394           & 2       \\ \hline
+\end{tabular}
+\vspace*{3mm}
+\caption{Constant + Shared version, Global memory profile}
+\label{table:t5}
+\end{table}
+
+Also the shared memory usage showed good results in terms of bank conflicts, the following metrics and events have been profiled:
+
+\begin{table}[!h]
+\centering
+\begin{tabular}{|l|l|l|l|l|}
+\hline
+\textbf{ld. transactions/request} & \textbf{st. transactions/request} & \textbf{ld. bank conflicts} & \textbf{st. bank conflicts}  \\ \hline
+1.026161           & 1.023599           & 0           & 8          \\ \hline
+\end{tabular}
+\vspace*{3mm}
+\caption{Constant + Shared version, Shared memory profile}
+\label{table:t6}
+\end{table}
+
+The performances showed overall better results: 
+
+\begin{table}[!h]
+\centering
+\begin{tabular}{|r|r|r|r|}
+\hline
+\textbf{Kernel Name} & \textbf{Avg. kernel exec time} & \textbf{Avg. APIs overhead} & \textbf{Avg. total exec time} \\ \hline
+deviceForwardV3           & 172us          & 230us   & 400us\\ \hline
+\end{tabular}
+\vspace*{3mm}
+\caption{Constant memory  performances}
+\label{table:t7}
+\end{table}
+
+The new version is expected to roughly 2x faster that the CPU one.
+
+\begin{figure}[!h]
+\centering
+\includegraphics[scale=0.6]{docs/cpuVSshared.png} 
+\caption{CPU vs GPU performances, version 3}
+\label{fig_gpu3}
+\end{figure}
+
+%In this final image are showed together the performances of the 3 versions to have a better idea of the achieved results:
 
 %\begin{figure}[!h]
 %\centering
-%\includegraphics[width=\columnwidth]{interconnections.jpg} 
-%\\caption{Connections between board and sensors}
-%\\label{fig_sim}
-%\\end{figure}
+%\includegraphics[scale=0.5]{docs/finalCmp.png} 
+%\caption{Comparison between GPU versions}
+%\label{fig_gpu4}
+%\end{figure}
 
-%\All the sensors have been mounted on a 3d printed support, made on purpose to accomodate the microcontroller, the IMU and the RFID reader, as well as the ultrasonic drivers. This "brain" of the system can be easily removed from the moth model, in order to calibrate the IMU, by performing the usual 8 in air around all the 3 different axes; when the calibration status reaches at least a medium value, a sound is emitted and the system can be mounted again in place.
+\section{Final comments}
+The different implementations can show how is possible to speed up an algorithm by just take advantage of the different memory hierarchies in the device.\\
+The issue behind the implementations presented before is connected to the device occupancy, which is a very important metric that indicates how many warps are active out of the total amount supported by the multirocessor(s) on the GPU.
+Even if the final version is optimised from a memory point of view, the overall occupancy is low, around 40\%, because the more the propagation moves across the layers the less threads will work.\\
+So next steps would be trying to design a solution that increases as much as possible the device occupancy by using for example multiple blocks instead of 1.
 
-%\\begin{figure}[!h]
-%\\centering
-%\includegraphics[width=0.8\columnwidth]{3dSupport.jpeg} 
-%\\caption{3d printed support}
-%\\label{fig_sim}
-%\\end{figure}
+\section{References}
 
-%\\begin{figure}[!h]
-%\\centering
-%\includegraphics[width=0.8\columnwidth]{CU.jpg}
-%\\caption{Mounted control unit}
-%\\end{figure}
+\begin{enumerate}
+\item Anatomy of the LeNet-1 Neural Network: https://acodez.in/anatomy-of-the-lenet-1-neural-network/
+\item Review LeNet-1: https://sh-tsang.medium.com/paper-brief-review-of-lenet-1-lenet-4-lenet-5-boosted-lenet-4-image-classification-1f5f809dbf17
+\item Anatomy of the LeNet-1 CNN: https://www.skyradar.com/blog/anatomy-of-the-lenet-1-convolutional-network-and-how-it-can-be-used-in-order-to-classify-radar-data
+\item Professional CUDA C Programming
+\end{enumerate}
 
-%\Finally, a model of the boat has been built to verify the correct behavior of the sensors and servo motor. In particular, it is composed of a foam hull, wooden appendages and a metal mechanism to translate the servo motor movement to the one of the flap.
 
-%\\section{Testing}
-%\All the single components have been tested separately to check their functionality and possible integration problems.
-%\Concerning the ultrasonic sensors, they have been properly calibrated by means of proper adjustments on the drivers.
-%\It is then possible to perform these different tests by acting on proper macros present in the code, like comment removal of \#define WATCHDOG\_TEST to effectively test the watchdog functionality.\\
 
-%\The decision of mounting the ultrasonic sensors on the edges has been adopted also in the real skiff and some tests have been performed to see if the minimum measurable height is guaranteed to be exceeded.
-
-%\\begin{figure}[!h]
-%\\centering
-%\includegraphics[width=0.8\columnwidth]{keth2.jpg} 
-%\\caption{Sensors measurement}
-%\\label{fig_sim}
-%\\end{figure}
-
-%\The whole system has then been properly checked on a model, to see its correct behavior; all the results can be seen in the proper section.
-
-%\\begin{figure}[!h]
-%\\centering
-%\includegraphics[width=0.8\columnwidth]{model_of_boat.jpg}
-%\\caption{Model of the moth}
-%\\end{figure}
-
-%\\section{Results and discussion}
-
-%\The real behavior of the boat has been simulated by physically holding the model at different heights, observing the flap behavior and collecting data.
-
-%\\begin{itemize}  
-%\\item Below the target height: \\
-%\the flap is oriented fully upwards (dutycycle = 1480), to increase the lift and make the moth fly (see \ref{table:below}).
-%\\item Above the target height: \\
-%\the flap is oriented fully downwards (dutycycle = 900), to make the moth going down, reducing the lift, avoiding it to take off (see \ref{table:above}).
-%\\item Approaching the target height: \\
-%\the flap continuously varies its orientation to maintain the target height (see \ref{table:target1}).
-%\Another acquisition has been reported to highlight the impact of the spatial orientation of the boat on the height determination (see \ref{table:target2}); in that case we saw that, more o less as expected, the roll angle is correctly weighting the measured distances to determine the flight height.
-%\\end{itemize}
-
-%\Pitch and Roll angles are expressed in radiants, the height is in mm and the servomotor's dutycycle is in $\mu$s.\\
-
-%\\begin{table}[!h]
-%\\centering
-%\\begin{tabular}{|r|r|r|r|r|}
-%\\hline
-%\\textbf{Time h/m/s/ms} & \textbf{Pitch} & \textbf{Roll} & \textbf{Height} & \textbf{Duty Cycle} \\ \hline
-%\15:27:09.401           & -0.28          & 0.02          & 518.88          & 1480.00       \\ \hline
-%\15:27:09.436           & -0.25          & 0.04          & 518.55          & 1480.00       \\ \hline
-%\15:27:09.511           & -0.27          & 0.00          & 522.42          & 1480.00       \\ \hline
-%\15:27:09.600           & -0.26          & -0.01         & 530.57          & 1480.00       \\ \hline
-%\15:27:09.646           & -0.24          & -0.02         & 532.81          & 1480.00       \\ \hline
-%\\end{tabular}
-%\\vspace*{3mm}
-%\\caption{Below the target height}
-%\\label{table:below}
-%\\end{table}
-
-%\\begin{table}[!h]
-%\\centering
-%\\begin{tabular}{|r|r|r|r|r|}
-%\\hline
-%\\textbf{Time h/m/s/ms} & \textbf{Pitch} & \textbf{Roll} & \textbf{Height} & \textbf{Duty Cycle} \\ \hline
-%\15:26:28.234           & 0.01           & 0.01          & 940.69          & 900.00        \\ \hline
-%\15:26:28.317           & 0.00           & 0.02          & 939.86          & 900.00        \\ \hline
-%\15:26:28.354           & 0.01           & 0.02          & 937.72          & 900.00        \\ \hline
-%\15:26:28.437           & 0.05           & 0.03          & 930.16          & 900.00        \\ \hline
-%\15:26:28.485           & 0.00           & 0.06          & 930.39          & 900.00        \\ \hline
-%\\end{tabular}
-%\\vspace*{3mm}
-%\\caption{Above the target height}
-%\\label{table:above}
-%\\end{table}
-
-%\\begin{table}[!h]
-%\\centering
-%\\begin{tabular}{|r|r|r|r|r|}
-%\\hline
-%\\textbf{Time h/m/s/ms} & \textbf{Pitch} & \textbf{Roll} & \textbf{Height} & \textbf{Duty Cycle} \\ \hline
-%\15:26:13.009           & -0.06          & 0.07          & 1069.28         & 900           \\ \hline
-%\15:26:13.053           & -0.05          & 0.07          & 826.44          & 1480.00       \\ \hline
-%\15:26:13.140           & -0.05          & 0.07          & 826.72          & 963.04        \\ \hline
-%\15:26:13.226           & -0.04          & 0.08          & 813.77          & 1319.49       \\ \hline
-%\15:26:13.268           & -0.04          & 0.08          & 813.81          & 1007.76       \\ \hline
-%\15:26:13.356           & -0.04          & 0.07          & 798.93          & 1410.20       \\ \hline
-%\15:26:13.402           & -0.04          & 0.07          & 797.86          & 1082.03       \\ \hline
-%\5:26:13.480           & -0.04          & 0.07          & 792.96          & 1188.86       \\ \hline
-%\15:26:13.527           & -0.05          & 0.06          & 789.36          & 1168.39       \\ \hline
-%\15:26:13.608           & -0.06          & 0.06          & 780.32          & 1325.97       \\ \hline
-%\15:26:13.700           & -0.07          & 0.05          & 778.45          & 1159.59       \\ \hline
-%\15:26:13.749           & -0.07          & 0.04          & 775.03          & 1206.91       \\ \hline
-%\\end{tabular}
-%\\vspace*{3mm}
-%\\caption{Approaching the target height with the model held parallel to the ground}
-%\\label{table:target1}
-%\\end{table}
-
-%\\begin{table}[!h]
-%\\centering
-%\\begin{tabular}{|r|r|r|r|r|}
-%\\hline
-%\\textbf{Time h/m/s/ms} & \textbf{Pitch} & \textbf{Roll} & \textbf{Height} & \textbf{Duty Cycle} \\ \hline
-%\15:27:16.839           & -0.06          & -0.39         & 835.20          & 944.99        \\ \hline
-%\15:27:16.881           & -0.06          & -0.40         & 831.56          & 1042.73       \\ \hline
-%\15:27:16.976           & -0.06          & -0.40         & 830.09          & 994.92        \\ \hline
-%\15:27:17.061           & -0.06          & -0.40         & 831.52          & 921.10        \\ \hline
-%\15:27:17.113           & -0.06          & -0.40         & 831.62          & 952.72        \\ \hline
-%\\end{tabular}
-%\\vspace*{3mm}
-%\\caption{Approaching the target height varying roll angle}
-%\\label{table:target2}
-%\\end{table}
-
-%\\pagebreak
-%\\section{Conclusions and Improvements}
-%\\vspace*{3mm}
-%\\subsection{Conclusions}
-%\The system works fine for the moment, considering that:\\
-%\- there is not a mathematical model,\\ 
-%\- it was not possible to carry out field tests.\\ 
-%\%\We noticed that varying the sample rate for acquisition and actuation, it is possible to obtain a more reactive system.\\
-%\In conclusion, the controller is able to change the servo motor angle, according to vertical, pitch and roll movements; concerning the sample rate, we worked with 500ms as a first approach to then move to 50ms, but is possible to go further more.\\
-%\When we are near to the target/set point the result is the expected one, a change of the flap orientation. 
-
-%\\subsection{Further improvements}
-%\A low power MCU can also be used, but to ensure that, some tests with a relatively high sample rate (milliseconds) should be performed.
-%\The board is powered (temporarily) with a powerbank. In the real application, we will use a servo motor which requires much more current (from 1.6 to 2 A); for this reason, we will need to power the servomotor separately and make the whole system easily rechargeable.
-%\We want also to obtain a trusted dynamic model of the Moth, in order to obtain PID parameters in an analytic way, in addition to the necessary experimental tests.
 
 \end{document}

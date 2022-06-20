@@ -590,9 +590,9 @@ int main()
 		timesGPU[i]=cpuSecond();
 		cudaMemcpy(dSource, feats->image, LENGTH_FEATURE0*LENGTH_FEATURE0*sizeof(float), cudaMemcpyHostToDevice);
     	deviceForwardV3<<<1,block>>>(dSource,dDest);
-		//cudaDeviceSynchronize();
-		CHECK_CUDA(cudaGetLastError());
-		CHECK_CUDA(cudaDeviceSynchronize());
+		cudaDeviceSynchronize();
+		//CHECK_CUDA(cudaGetLastError());
+		//CHECK_CUDA(cudaDeviceSynchronize());
 		cudaMemcpy(gpuRes, dDest, OUTPUT*sizeof(float), cudaMemcpyDeviceToHost);
    		timesGPU[i]=cpuSecond()-timesGPU[i];
    		totTimeGPU+=timesGPU[i];
