@@ -15,7 +15,7 @@ BUILD=build/
 DOCS=docs/
 NVCC=/usr/local/cuda/bin/nvcc
 CUDA_FLAGS=--resource-usage
-CUDA_FLAGS+=-arch=sm_53
+CUDA_FLAGS+=-arch=$(GPU_ARCHITECTURE)
 DEBUG=0
 FMATH=0
 

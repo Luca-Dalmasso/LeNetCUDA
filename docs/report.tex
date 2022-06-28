@@ -28,8 +28,8 @@
 
 %\IEEEpeerreviewmaketitle
 \begin{abstract}
-This project consists in developing the LeNet-1 Convolutional Neural Network with the aim of speeding it up in a GPU through the CUDA programming language.\\
-In this report is presented one possible implementation of the CNN on the GPU that starts from a very naïve version of the algorithm and shows what are the optimisations that were implemented in order to get better performances and better usage of the GPU resources.
+The project consisted in developing the LeNet-1 Convolutional Neural Network with the aim of speeding it up in a GPU through the CUDA programming language.\\
+In this report are presented some example of possible implementations of the CNN algorithm on the GPU that start from a very naïve version and shows what are the optimisations that were implemented in order to get better performances and better usage of the GPU resources.
 
 \end{abstract}
 
@@ -48,7 +48,7 @@ Layers in a CNN are divided into three categories:
  An example of input layer can be the robot in the Figure 1 .
 \item Hidden layer: any middle layer in a CNN is also called hidden layer and they are a set of feature maps.
 They are called hidden because their inputs and outputs are masked by convolutions , activation function and pooling or subsampling functions.
-Each hidden layer is used as an input of the next hidden layer until the last one, which is flattened and processed to become the output layer.
+Each hidden layer is used as an input of the next hidden layer until the last one, which is further processed to become the output layer.
 An example of hidden layer can be the first four feature maps of the Figure 1 that are obtained starting from the input image convolved with four different filters.
 \item Output layer: contains the results of the classification.
 \end{enumerate}
@@ -152,7 +152,7 @@ Os = Is - Ks +1
 \subsection{Activation Function}
 The activation function, sometimes also called transfer function, defines how the weighted sum of the input (so the result of a convolution) is transformed into an output value.\\
 There are different types of activation functions and usually many of them are nonlinear functions,  and the choice of which activation function to use can really affects the performances and the capabilities of a neural network.\\
-Typically every pixel after being convoluted is also activated, this operation is performed by the convolution layers.\\
+Typically every pixel after being convoluted is also activated, this operation is performed by the convolutional layers.\\
 Without going into many details, the LeNet-1 makes use of the Sigmoid function which is the following nonlinear function:
 \begin{equation} 
 \label{outsize}
@@ -319,7 +319,7 @@ The following graph is showing the execution times for 10 consecutive forward pr
 Considering that the propagation through the layers is sequential it is still possible to accelerate the overall performances of the network by speeding-up the internal operations of each layer.\\
 Once the features of the layer \( i \) are ready, all the features of the layer \( i+1 \) can be processed in parallel because each neuron can be computed independently from all others in the same layer.\\
 As introduced before, the implementation starts from a very naïve version that processes data using heavily the global memory, the goal was to move as much as possible the data in shared memory in such a way to reduce as much as possible the amount of global memory transactions.\\
-The algorithm is executed by a single block of 28x28 threads and it is the same in all the 3 versions, the only differences are how the data are arranged in the memories.
+The algorithm is executed by a single block of 28x28 threads and it is the same in all the 3 versions, the only differences are in how the data are arranged in the memories.
 
 \subsection{Naïve version benchmarks}
 All filters are saved in global memory, all features are saved in global memory.
@@ -465,20 +465,24 @@ The new version is expected to roughly 2x faster that the CPU one.
 \label{fig_gpu3}
 \end{figure}
 
-%In this final image are showed together the performances of the 3 versions to have a better idea of the achieved results:
 
-%\begin{figure}[!h]
-%\centering
-%\includegraphics[scale=0.5]{docs/finalCmp.png} 
-%\caption{Comparison between GPU versions}
-%\label{fig_gpu4}
-%\end{figure}
-
-\section{Final comments}
+\section{Block Concurrency}
 The different implementations can show how is possible to speed up an algorithm by just take advantage of the different memory hierarchies in the device.\\
-The issue behind the implementations presented before is connected to the device occupancy, which is a very important metric that indicates how many warps are active out of the total amount supported by the multirocessor(s) on the GPU.
-Even if the final version is optimised from a memory point of view, the overall occupancy is low, around 40\%, because the more the propagation moves across the layers the less threads will work.\\
-So next steps would be trying to design a solution that increases as much as possible the device occupancy by using for example multiple blocks instead of 1.
+The issue behind the implementations presented before is connected to the device occupancy, which is a very important metric that indicates how many warps are active out of the total amount supported by the multiprocessor(s) on the GPU.
+Even if the final version is optimised from a memory point of view, the overall occupancy is low, less then 40\%, because the more the propagation moves across the layers the less threads will work.\\
+Another aspect that has not been taken into consideration is the possibility to use multiple blocks for accelerating more the algorithm.\\
+In order to solve these two problems the idea is to have multiple blocks running the same code on different images, like having multiple instances of the CNN running "in parallel" on the device where basically each block is used to classify an image.\\
+In the previous implementations the kernel is a single block that receives as input an image, runs the forward propagation and saves back the result, this is repeated \(iteratively\) for every image that the application wants to classify. In this new implementation the kernel receives as input the entire (or a part of it, depending on the total amount of memory) collection of images that the application wants to classify and each block is in charge of performing the forward propagation on one image.\\
+Having multiple blocks running can not only lead to higher performances but also increase the overall device occupancy.
+The following picture shows what are the speed up of this implementation with respect to the CPU, as a function of blocks (images) running in the GPU:
+\begin{figure}[!h]
+\centering
+\includegraphics[scale=0.3]{docs/blocks_results.png} 
+\caption{GPU acceleration as a function of blocks running in the kernel}
+\label{fig_gpu5}
+\end{figure}
+
+The profiler also reported that the occupancy has settled around 70\%, starting from the previous 35 \( \sim \) 40 \%.
 
 \section{References}
 
