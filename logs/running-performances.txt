@@ -1,0 +1,2 @@
+CPU time (s),GPU time (s), Cycle
+0.000707,0.000470,0

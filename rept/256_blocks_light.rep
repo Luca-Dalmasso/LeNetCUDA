@@ -1,0 +1,21 @@
+==3324== NVPROF is profiling process 3324, command: ./LeNet
+==3324== Warning: Unified Memory Profiling is not supported on the underlying platform. System requirements for unified memory can be found at: http://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#um-requirements
+==3324== Profiling application: ./LeNet
+==3324== Profiling result:
+            Type  Time(%)      Time     Calls       Avg       Min       Max  Name
+ GPU activities:   92.90%  20.662ms         1  20.662ms  20.662ms  20.662ms  deviceForwardBlocks(Cluster*)
+                    3.58%  797.29us         4  199.32us  2.7600us  788.01us  [CUDA memcpy HtoD]
+                    3.52%  782.08us         1  782.08us  782.08us  782.08us  [CUDA memcpy DtoH]
+      API calls:   93.53%  350.00ms         1  350.00ms  350.00ms  350.00ms  cudaMalloc
+                    5.57%  20.854ms         1  20.854ms  20.854ms  20.854ms  cudaDeviceSynchronize
+                    0.53%  2.0010ms         2  1.0005ms  401.32us  1.5997ms  cudaMemcpy
+                    0.29%  1.0973ms         3  365.78us  111.88us  869.87us  cudaMemcpyToSymbol
+                    0.03%  122.45us        97  1.2620us     677ns  29.949us  cuDeviceGetAttribute
+                    0.02%  84.795us         1  84.795us  84.795us  84.795us  cudaLaunchKernel
+                    0.00%  10.209us         1  10.209us  10.209us  10.209us  cuDeviceTotalMem
+                    0.00%  9.4790us         1  9.4790us  9.4790us  9.4790us  cudaSetDevice
+                    0.00%  6.5100us         3  2.1700us  1.4060us  3.1770us  cuDeviceGetCount
+                    0.00%  3.0210us         2  1.5100us  1.3020us  1.7190us  cuDeviceGet
+                    0.00%  2.2920us         1  2.2920us  2.2920us  2.2920us  cuDeviceGetName
+                    0.00%  1.6670us         1  1.6670us  1.6670us  1.6670us  cudaGetDeviceCount
+                    0.00%  1.1450us         1  1.1450us  1.1450us  1.1450us  cuDeviceGetUuid

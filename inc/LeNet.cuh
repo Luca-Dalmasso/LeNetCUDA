@@ -60,6 +60,17 @@
 /** bias not included among trainable parameters*/
 #define BIAS	0.0f
 
+/** number of parallel blocks running the neural network on the GPU **/
+#define NBLOCKS 256
+
+/** number of forward cycles to profile in the version without block concurrency **/
+#define FORWARD_CYCLES 1
+
+/** 0 --> do not profile verion with block concurrency, 1--> profile version with block concurrency "deviceForwardBlock" **/
+#define PROFILE_PARALLEL_BLOCKS 0
+
+
+
 /** TRAINABLE PARAMETERS */
 typedef struct Weigths
 {
@@ -88,5 +99,19 @@ typedef struct Feature
 	float layer5[OUTPUT];
 }Feature;
 
+
+/** block concurrency device version "deviceForwardBlock" works using this structure
+ *  this contains a collection of image and the collection of related calssification
+ *  the GPU can solve "in parallel" using NBLOCKS blocks that run the forward propagation.
+ *  block #0 runs forward propagation of image_collection[0] and saves the result of the class. in class_collection[0]
+ *  block #1 runs //
+ *  block #2 //
+ *  ecc, ecc
+ */
+typedef struct Cluster
+{
+	float image_collection[NBLOCKS][LENGTH_FEATURE0*LENGTH_FEATURE0];
+	float class_collection[NBLOCKS][OUTPUT];
+}Cluster;
 
 #endif

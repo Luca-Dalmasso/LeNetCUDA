@@ -23,7 +23,7 @@ void initCUDA(void){
         printf("There are no available device(s) that support CUDA\n");
         exit(1);
     }
-    #if (VERBOSE)
+    #if (VERBOSE==2)
     	fprintf(stdout,"Detected %d CUDA Capable device(s)\n", deviceCount);
     	int dev = 0, driverVersion = 0, runtimeVersion = 0;
     	CHECK_CUDA(cudaSetDevice(dev));

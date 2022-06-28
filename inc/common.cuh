@@ -21,7 +21,7 @@
 #define CHECK 1
 
 /** maximum difference allowed between a GPU and a CPU result in order to consider them equal (used for fast math intrinsic functions)*/
-#define DELTA 0.00001f
+#define DELTA 0.000001f
 
 /** PTX Unsigned Integer __umul24 instruction*/
 #define UIMUL24(a,b) (__umul24((a),(b)))

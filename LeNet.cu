@@ -113,6 +113,18 @@ __host__ static void initImage(float image[LENGTH_FEATURE0*LENGTH_FEATURE0])
 		image[i]=randomUint8()/16.0f;
 }
 
+/*
+ * @brief init Cluster struct as a collection of images to be classified in parallel
+ */
+__host__ static Cluster* initCluster()
+{
+	Cluster *c = (Cluster *)malloc(sizeof(struct Cluster));
+	CHECK_PTR(c);
+	for(int i=0;i<NBLOCKS;i++)
+		initImage(c->image_collection[i]);
+	return c;
+}
+
 /**
  * @brief create Feature Struct type
  * @return Feature Struct type
@@ -121,9 +133,20 @@ __host__ static Feature* initFeat()
 {
 	Feature *feat = (Feature *)malloc(sizeof(struct Feature));
 	CHECK_PTR(feat);
-	initImage(feat->image);
 	return feat;
 } 
+
+/**
+ * @brief copy array values into another
+ * @param s: source array
+ * @param d: destination array
+ * @param dim: size of the copy
+ */
+__host__ static void arrcpy(float *s, float *d, int dim)
+{
+	for(int i=0;i<dim;i++)
+		d[i]=s[i];
+}
 
 
 /**
@@ -418,7 +441,7 @@ __global__ void deviceForwardV3(float in[LENGTH_FEATURE0*LENGTH_FEATURE0], float
 	if(tx>=LENGTH_FEATURE0 || ty>=LENGTH_FEATURE0) return;
 	
 	//LAYER0 raw copy in shared memory
-	image[ty*LENGTH_FEATURE0+tx]=in[ty*LENGTH_FEATURE0+tx];
+	image[ty*LENGTH_FEATURE0+tx]=in[(ty*LENGTH_FEATURE0+tx)];
 	__syncthreads();
 	
 	//LAYER1: C1 convolutional layer
@@ -536,92 +559,311 @@ __global__ void deviceForwardV3(float in[LENGTH_FEATURE0*LENGTH_FEATURE0], float
 }
 
 
+/** @brief same FP algorithm, different data structure
+ *  in this version the kernel is supposed to concurrently run NBLOCKS blocks that "in parallel" perform
+ *  the Forward Propagation on NBLOCKS images.
+ *  Each block basically runs his own FP on his own image and his own OUTPUT
+ */
+__global__ void deviceForwardBlocks(Cluster *c)
+{
+	//features, struct Feature unpacked in shared memory
+	__shared__ float image[LENGTH_FEATURE0*LENGTH_FEATURE0];
+	__shared__ float layer1[LAYER1][LENGTH_FEATURE1*LENGTH_FEATURE1];
+	__shared__ float layer2[LAYER2][LENGTH_FEATURE2*LENGTH_FEATURE2];
+	__shared__ float layer3[LAYER3][LENGTH_FEATURE3*LENGTH_FEATURE3];
+	__shared__ float layer4[LAYER4][LENGTH_FEATURE4*LENGTH_FEATURE4];
+	__shared__ float tmp_output[OUTPUT][LAYER4];
+	
+	int tx=threadIdx.x;
+	int ty=threadIdx.y;
+	int bid=blockIdx.x;
+	float finalResult;
+	float sum[12];
+	
+	if(tx>=LENGTH_FEATURE0 || ty>=LENGTH_FEATURE0) return;
+	
+	//LAYER0 raw copy in shared memory
+	image[ty*LENGTH_FEATURE0+tx]=c->image_collection[bid][(ty*LENGTH_FEATURE0+tx)];
+	__syncthreads();
+	
+	//LAYER1: C1 convolutional layer
+	if(tx>=CENTER && tx<LENGTH_FEATURE0-CENTER && ty>=CENTER && ty<LENGTH_FEATURE0-CENTER) //borders are not considered
+	{ 
+		#pragma unroll(5)
+ 		for(int i=0;i<LENGTH_KERNEL0;i++)
+ 		{
+ 			#pragma unroll(5)
+ 			for(int j=0;j<LENGTH_KERNEL0;j++)
+ 			{
+ 				sum[0]+=image[(ty-CENTER+i)*LENGTH_FEATURE0+tx-CENTER+j] * filtersC1[0][(i*LENGTH_KERNEL0)+j];
+ 				sum[1]+=image[(ty-CENTER+i)*LENGTH_FEATURE0+tx-CENTER+j] * filtersC1[1][(i*LENGTH_KERNEL0)+j];
+ 				sum[2]+=image[(ty-CENTER+i)*LENGTH_FEATURE0+tx-CENTER+j] * filtersC1[2][(i*LENGTH_KERNEL0)+j];
+ 				sum[3]+=image[(ty-CENTER+i)*LENGTH_FEATURE0+tx-CENTER+j] * filtersC1[3][(i*LENGTH_KERNEL0)+j];
+ 			}
+ 		}
+ 		layer1[0][(ty-CENTER)*LENGTH_FEATURE1+(tx-CENTER)]=sigmoid(sum[0] + BIAS);
+ 		layer1[1][(ty-CENTER)*LENGTH_FEATURE1+(tx-CENTER)]=sigmoid(sum[1] + BIAS);
+ 		layer1[2][(ty-CENTER)*LENGTH_FEATURE1+(tx-CENTER)]=sigmoid(sum[2] + BIAS);
+ 		layer1[3][(ty-CENTER)*LENGTH_FEATURE1+(tx-CENTER)]=sigmoid(sum[3] + BIAS);
+ 	}
+	__syncthreads();
+	
+	//LAYER2: P1 pooling layer
+	if (tx<LENGTH_FEATURE1 && ty<LENGTH_FEATURE1 && tx%2==0 && ty%2==0)
+	{
+		deviceAvgPool(layer1[0], layer2[0], LENGTH_FEATURE1, LENGTH_FEATURE2);
+		deviceAvgPool(layer1[1], layer2[1], LENGTH_FEATURE1, LENGTH_FEATURE2);
+		deviceAvgPool(layer1[2], layer2[2], LENGTH_FEATURE1, LENGTH_FEATURE2);
+		deviceAvgPool(layer1[3], layer2[3], LENGTH_FEATURE1, LENGTH_FEATURE2);
+	}
+	__syncthreads();
+	
+	//LAYER3: C2 convolutional layer
+	if(tx>=CENTER && tx<LENGTH_FEATURE2-CENTER && ty>=CENTER && ty<LENGTH_FEATURE2-CENTER) //borders are not considered
+	{ 
+		#pragma unroll(12)
+		for(int i=0;i<12;i++)
+			sum[i]=0.0f;
+		#pragma unroll(5)
+ 		for(int i=0;i<LENGTH_KERNEL0;i++)
+ 		{
+ 			#pragma unroll(5)
+ 			for(int j=0;j<LENGTH_KERNEL0;j++)
+ 			{
+ 				sum[0]+=layer2[0][(ty-CENTER+i)*LENGTH_FEATURE2+tx-CENTER+j] * filtersC2[0][(i*LENGTH_KERNEL0)+j];
+ 				sum[1]+=layer2[0][(ty-CENTER+i)*LENGTH_FEATURE2+tx-CENTER+j] * filtersC2[1][(i*LENGTH_KERNEL0)+j];
+ 				sum[2]+=layer2[0][(ty-CENTER+i)*LENGTH_FEATURE2+tx-CENTER+j] * filtersC2[2][(i*LENGTH_KERNEL0)+j];
+ 				sum[3]+=layer2[1][(ty-CENTER+i)*LENGTH_FEATURE2+tx-CENTER+j] * filtersC2[0][(i*LENGTH_KERNEL0)+j];
+ 				sum[4]+=layer2[1][(ty-CENTER+i)*LENGTH_FEATURE2+tx-CENTER+j] * filtersC2[1][(i*LENGTH_KERNEL0)+j];
+ 				sum[5]+=layer2[1][(ty-CENTER+i)*LENGTH_FEATURE2+tx-CENTER+j] * filtersC2[2][(i*LENGTH_KERNEL0)+j];
+ 				sum[6]+=layer2[2][(ty-CENTER+i)*LENGTH_FEATURE2+tx-CENTER+j] * filtersC2[0][(i*LENGTH_KERNEL0)+j];
+ 				sum[7]+=layer2[2][(ty-CENTER+i)*LENGTH_FEATURE2+tx-CENTER+j] * filtersC2[1][(i*LENGTH_KERNEL0)+j];
+ 				sum[8]+=layer2[2][(ty-CENTER+i)*LENGTH_FEATURE2+tx-CENTER+j] * filtersC2[2][(i*LENGTH_KERNEL0)+j];
+ 				sum[9]+=layer2[3][(ty-CENTER+i)*LENGTH_FEATURE2+tx-CENTER+j] * filtersC2[0][(i*LENGTH_KERNEL0)+j];
+ 				sum[10]+=layer2[3][(ty-CENTER+i)*LENGTH_FEATURE2+tx-CENTER+j] * filtersC2[1][(i*LENGTH_KERNEL0)+j];
+ 				sum[11]+=layer2[3][(ty-CENTER+i)*LENGTH_FEATURE2+tx-CENTER+j] * filtersC2[2][(i*LENGTH_KERNEL0)+j];
+ 			}
+ 		}
+ 		layer3[0][(ty-CENTER)*LENGTH_FEATURE3+(tx-CENTER)]=sigmoid(sum[0] + BIAS);
+ 		layer3[1][(ty-CENTER)*LENGTH_FEATURE3+(tx-CENTER)]=sigmoid(sum[1] + BIAS);
+ 		layer3[2][(ty-CENTER)*LENGTH_FEATURE3+(tx-CENTER)]=sigmoid(sum[2] + BIAS);
+ 		layer3[3][(ty-CENTER)*LENGTH_FEATURE3+(tx-CENTER)]=sigmoid(sum[3] + BIAS);
+ 		layer3[4][(ty-CENTER)*LENGTH_FEATURE3+(tx-CENTER)]=sigmoid(sum[4] + BIAS);
+ 		layer3[5][(ty-CENTER)*LENGTH_FEATURE3+(tx-CENTER)]=sigmoid(sum[5] + BIAS);
+ 		layer3[6][(ty-CENTER)*LENGTH_FEATURE3+(tx-CENTER)]=sigmoid(sum[6] + BIAS);
+ 		layer3[7][(ty-CENTER)*LENGTH_FEATURE3+(tx-CENTER)]=sigmoid(sum[7] + BIAS);
+ 		layer3[8][(ty-CENTER)*LENGTH_FEATURE3+(tx-CENTER)]=sigmoid(sum[8] + BIAS);
+ 		layer3[9][(ty-CENTER)*LENGTH_FEATURE3+(tx-CENTER)]=sigmoid(sum[9] + BIAS);
+ 		layer3[10][(ty-CENTER)*LENGTH_FEATURE3+(tx-CENTER)]=sigmoid(sum[10] + BIAS);
+ 		layer3[11][(ty-CENTER)*LENGTH_FEATURE3+(tx-CENTER)]=sigmoid(sum[11] + BIAS);
+ 	}
+ 	__syncthreads();
+ 	
+	//LAYER4: P2 pooling layer
+	if (tx<LENGTH_FEATURE3 && ty<LENGTH_FEATURE3 && tx%2==0 && ty%2==0)
+	{
+		deviceAvgPool(layer3[0], layer4[0], LENGTH_FEATURE3, LENGTH_FEATURE4);
+		deviceAvgPool(layer3[1], layer4[1], LENGTH_FEATURE3, LENGTH_FEATURE4);
+		deviceAvgPool(layer3[2], layer4[2], LENGTH_FEATURE3, LENGTH_FEATURE4);
+		deviceAvgPool(layer3[3], layer4[3], LENGTH_FEATURE3, LENGTH_FEATURE4);
+		deviceAvgPool(layer3[4], layer4[4], LENGTH_FEATURE3, LENGTH_FEATURE4);
+		deviceAvgPool(layer3[5], layer4[5], LENGTH_FEATURE3, LENGTH_FEATURE4);
+		deviceAvgPool(layer3[6], layer4[6], LENGTH_FEATURE3, LENGTH_FEATURE4);
+		deviceAvgPool(layer3[7], layer4[7], LENGTH_FEATURE3, LENGTH_FEATURE4);
+		deviceAvgPool(layer3[8], layer4[8], LENGTH_FEATURE3, LENGTH_FEATURE4);
+		deviceAvgPool(layer3[9], layer4[9], LENGTH_FEATURE3, LENGTH_FEATURE4);
+		deviceAvgPool(layer3[10], layer4[10], LENGTH_FEATURE3, LENGTH_FEATURE4);
+		deviceAvgPool(layer3[11], layer4[11], LENGTH_FEATURE3, LENGTH_FEATURE4);
+	}
+	__syncthreads();
+	
+	//LAYER5: Fully connected to OUTPUT
+	if(ty<LAYER4 && tx<OUTPUT)
+	{
+		finalResult=0.0f;
+		#pragma unroll(4)
+ 		for(int i=0;i<LENGTH_KERNEL1;i++)
+ 			#pragma unroll(4)
+ 			for(int j=0;j<LENGTH_KERNEL1;j++)
+ 				finalResult+=layer4[ty][i*LENGTH_FEATURE4+j] *  filtersC3[tx][i*LENGTH_KERNEL1+j];
+		tmp_output[tx][ty]=finalResult;
+		__syncthreads();
+		if(ty==0)
+		{
+			finalResult=0.0f;
+			#pragma unroll(12)
+			for(int i=0;i<LAYER4;i++)
+				finalResult+=tmp_output[tx][i];
+			c->class_collection[bid][tx]=sigmoid(finalResult+BIAS);
+		}
+	}
+	
+}
+
+
 /**MAIN*/
 
-#define FORWARD_CYCLES 50000
+#if (PROFILE_PARALLEL_BLOCKS == 0)
 
-int main()
-{
-	initCUDA();
-	
-	Feature *feats;
-	Weigths *weights;
-	weights = initFilters();
-	feats = initFeat();
-	
-	FILE *RES,*PER;
-	
-	RES=fopen("./logs/running-results.txt","w");
-	CHECK_PTR(RES);
-	PER=fopen("./logs/running-performances.txt","w");
-	CHECK_PTR(PER);
-	
-	double timesCPU[FORWARD_CYCLES+1];
-	double timesGPU[FORWARD_CYCLES+1];
-	double totTimeCPU=0.0;
-	double totTimeGPU=0.0;
-	
-	//alloc datas on device  (float in[LENGTH_FEATURE0*LENGTH_FEATURE0], float out[OUTPUT])
-	float *dSource;
-	float *dDest;
-	float *gpuRes;
-	dim3 block (LENGTH_FEATURE0, LENGTH_FEATURE0);
-	gpuRes=(float *)malloc(OUTPUT*OUTPUT*sizeof(float));
-	CHECK_PTR(gpuRes);
-	CHECK_CUDA(cudaMalloc( (void**)&dDest, OUTPUT*sizeof(float)));
-	CHECK_CUDA(cudaMalloc( (void**)&dSource, LENGTH_FEATURE0*LENGTH_FEATURE0*sizeof(float)));
-	
-	//alloc device constant memory
-	CHECK_CUDA(cudaMemcpyToSymbol(filtersC1, weights->filters1, sizeof(filtersC1)));
-	CHECK_CUDA(cudaMemcpyToSymbol(filtersC2, weights->filters2, sizeof(filtersC2)));
-	CHECK_CUDA(cudaMemcpyToSymbol(filtersC3, weights->filters3, sizeof(filtersC3)));
-	
-	fprintf(PER,"CPU time (s),GPU time (s), Cycle\n");
-	for(int i=0; i<FORWARD_CYCLES; i++)
+	/*standard forward propagation, one image at a time*/
+	int main()
 	{
-		// host forward propagation
-		initImage(feats->image); //Get new image
-		timesCPU[i]=cpuSecond();
-		hostForward(feats, weights);
-		timesCPU[i]=cpuSecond()-timesCPU[i];
-		totTimeCPU+=timesCPU[i];
+		initCUDA();
 		
-	    // device forward propagation
-		timesGPU[i]=cpuSecond();
-		cudaMemcpy(dSource, feats->image, LENGTH_FEATURE0*LENGTH_FEATURE0*sizeof(float), cudaMemcpyHostToDevice);
-    	deviceForwardV3<<<1,block>>>(dSource,dDest);
+		Feature *feats;
+		Weigths *weights;
+		Cluster *cluster;
+		weights = initFilters();
+		feats = initFeat();
+	
+		FILE *RES,*PER;
+	
+		RES=fopen("./logs/running-results.txt","w");
+		CHECK_PTR(RES);
+		PER=fopen("./logs/running-performances.txt","w");
+		CHECK_PTR(PER);
+	
+		double timesCPU[FORWARD_CYCLES+1];
+		double timesGPU[FORWARD_CYCLES+1];
+		double totTimeCPU=0.0;
+		double totTimeGPU=0.0;
+	
+		//alloc datas on device  (float in[LENGTH_FEATURE0*LENGTH_FEATURE0], float out[OUTPUT])
+		float *dSource;
+		float *dDest;
+		float *gpuRes;
+		dim3 block (LENGTH_FEATURE0, LENGTH_FEATURE0);
+		gpuRes=(float *)malloc(OUTPUT*sizeof(float));
+		CHECK_PTR(gpuRes);
+		CHECK_CUDA(cudaMalloc( (void**)&dDest, OUTPUT*sizeof(float)));
+		CHECK_CUDA(cudaMalloc( (void**)&dSource, LENGTH_FEATURE0*LENGTH_FEATURE0*sizeof(float)));
+	
+		//alloc device constant memory
+		CHECK_CUDA(cudaMemcpyToSymbol(filtersC1, weights->filters1, sizeof(filtersC1)));
+		CHECK_CUDA(cudaMemcpyToSymbol(filtersC2, weights->filters2, sizeof(filtersC2)));
+		CHECK_CUDA(cudaMemcpyToSymbol(filtersC3, weights->filters3, sizeof(filtersC3)));
+	
+		fprintf(PER,"CPU time (s),GPU time (s), Cycle\n");
+		for(int i=0; i<FORWARD_CYCLES; i++)
+		{
+			// host forward propagation
+			initImage(feats->image); //Get new image
+			timesCPU[i]=cpuSecond();
+			hostForward(feats, weights);
+			timesCPU[i]=cpuSecond()-timesCPU[i];
+			totTimeCPU+=timesCPU[i];
+		
+	    	// device forward propagation
+			timesGPU[i]=cpuSecond();
+			cudaMemcpy(dSource, feats->image, LENGTH_FEATURE0*LENGTH_FEATURE0*sizeof(float), cudaMemcpyHostToDevice);
+    		deviceForwardV3<<<1,block>>>(dSource,dDest);
+			cudaDeviceSynchronize();
+			//CHECK_CUDA(cudaGetLastError());
+			//CHECK_CUDA(cudaDeviceSynchronize());
+			cudaMemcpy(gpuRes, dDest, OUTPUT*sizeof(float), cudaMemcpyDeviceToHost);
+   			timesGPU[i]=cpuSecond()-timesGPU[i];
+   			totTimeGPU+=timesGPU[i];
+   			if(checkRes(feats->layer5,gpuRes,OUTPUT,1)==1)
+   			{
+    			fprintf(stderr,"GPU and CPU result missmatch in the %d cycle\n",i);
+       			exit(1);
+    		}
+			fprintf(PER,"%f,%f,%d\n",timesCPU[i],timesGPU[i],i);
+		}
+		fprintf(stdout,"\n");
+		
+		fprintf(stdout,"CPU required time for %d cycles of forward propagation is %f (s)\n",FORWARD_CYCLES,totTimeCPU);
+		fprintf(stdout,"GPU required time for %d cycles of forward propagation is %f (s)\n",FORWARD_CYCLES,totTimeGPU);
+
+		fprintf(RES,"Lenet dump for the last iteration\n");
+		printLeNet(feats, weights, RES);
+	
+		CHECK_CUDA(cudaFree(dSource));
+    	CHECK_CUDA(cudaFree(dDest));
+    	free(gpuRes);
+    	free(weights);
+    	free(feats);
+    
+    	fclose(PER);
+    	fclose(RES);
+
+    	// reset device
+    	CHECK_CUDA(cudaDeviceReset());
+		return 0;
+	}
+#else
+	/*block concurrent version of forward propagation, a kernel of NBLOCK blocks runs the FP on NBLOCK different image "in parallel"*/
+	int main(void)
+	{
+		initCUDA();
+		
+		Feature *feats;
+		Weigths *weights;
+		Cluster *cluster;
+		weights = initFilters();
+		feats = initFeat();
+		cluster = initCluster();
+	
+		double timesCPU[NBLOCKS+1];
+		double totTimeCPU=0.0;
+		
+		int i,j,k;
+		
+		//cpu results are saved separately
+		float class_collection_CPU[NBLOCKS][OUTPUT];
+		
+		//run cpu forward propagation on all image in the cluster serially
+		for(i=0;i<NBLOCKS;i++)
+		{
+			//get new image from cluster
+			arrcpy(cluster->image_collection[i], feats->image, LENGTH_FEATURE0* LENGTH_FEATURE0);
+			timesCPU[i]=cpuSecond();
+			hostForward(feats, weights);
+			timesCPU[i]=cpuSecond()-timesCPU[i];
+			totTimeCPU+=timesCPU[i];
+			//save current classification in the cluster
+			arrcpy(feats->layer5, class_collection_CPU[i], OUTPUT);
+		}
+		
+		//device datas
+		Cluster *dStruct;
+		dim3 block (LENGTH_FEATURE0, LENGTH_FEATURE0);
+		double totTimeGPU=0.0;
+		
+		CHECK_CUDA(cudaMalloc( (void**)&dStruct, sizeof(struct Cluster)));
+		
+		cudaMemcpy(dStruct, cluster, sizeof(struct Cluster), cudaMemcpyHostToDevice);
+		
+		//alloc device constant memory
+		CHECK_CUDA(cudaMemcpyToSymbol(filtersC1, weights->filters1, sizeof(filtersC1)));
+		CHECK_CUDA(cudaMemcpyToSymbol(filtersC2, weights->filters2, sizeof(filtersC2)));
+		CHECK_CUDA(cudaMemcpyToSymbol(filtersC3, weights->filters3, sizeof(filtersC3)));
+		
+		//call and measure performances of GPU kernel forward propagation on all image in the cluster IN PARALLEL
+		totTimeGPU=cpuSecond();
+		deviceForwardBlocks<<<NBLOCKS,block>>>(dStruct);
 		cudaDeviceSynchronize();
 		//CHECK_CUDA(cudaGetLastError());
 		//CHECK_CUDA(cudaDeviceSynchronize());
-		cudaMemcpy(gpuRes, dDest, OUTPUT*sizeof(float), cudaMemcpyDeviceToHost);
-   		timesGPU[i]=cpuSecond()-timesGPU[i];
-   		totTimeGPU+=timesGPU[i];
-   		if(checkRes(feats->layer5,gpuRes,OUTPUT,1)==1)
-   		{
-    		fprintf(stderr,"GPU and CPU result missmatch in the %d cycle\n",i);
-       		exit(1);
-    	}
-		fprintf(PER,"%f,%f,%d\n",timesCPU[i],timesGPU[i],i);
+   		totTimeGPU=cpuSecond()-totTimeGPU;
+   		cudaMemcpy(cluster, dStruct, sizeof(struct Cluster), cudaMemcpyDeviceToHost);
+		
+		//check results
+		for(i=0;i<NBLOCKS;i++)
+		{
+			if(checkRes(class_collection_CPU[i],cluster->class_collection[i],OUTPUT,1)==1)
+   			{
+    			fprintf(stderr,"GPU and CPU result missmatch in the %d BLOCK\n",i);
+       			exit(1);
+    		}
+		}
+		
+		fprintf(stdout,"CPU required time for %d images classification is %f (s)\n",NBLOCKS,totTimeCPU);
+		fprintf(stdout,"CPU required time for %d images classification is %f (s)\n",NBLOCKS,totTimeGPU);
+		
+		return 0;
+		
 	}
-	fprintf(stdout,"\n");
-	
-	fprintf(stdout,"CPU required time for %d cycles of forward propagation is %f (s)\n",FORWARD_CYCLES,totTimeCPU);
-	fprintf(stdout,"GPU required time for %d cycles of forward propagation is %f (s)\n",FORWARD_CYCLES,totTimeGPU);
 
-	fprintf(RES,"Lenet dump for the last iteration\n");
-	printLeNet(feats, weights, RES);
-	
-	CHECK_CUDA(cudaFree(dSource));
-    CHECK_CUDA(cudaFree(dDest));
-    free(gpuRes);
-    free(weights);
-    free(feats);
-    
-    fclose(PER);
-    fclose(RES);
-
-    // reset device
-    CHECK_CUDA(cudaDeviceReset());
-	return 0;
-}
+#endif
 
