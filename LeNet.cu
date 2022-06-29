@@ -113,7 +113,7 @@ __host__ static void initImage(float image[LENGTH_FEATURE0*LENGTH_FEATURE0])
 		image[i]=randomUint8()/16.0f;
 }
 
-/*
+/**
  * @brief init Cluster struct as a collection of images to be classified in parallel
  */
 __host__ static Cluster* initCluster()
@@ -859,7 +859,7 @@ __global__ void deviceForwardBlocks(Cluster *c)
 		}
 		
 		fprintf(stdout,"CPU required time for %d images classification is %f (s)\n",NBLOCKS,totTimeCPU);
-		fprintf(stdout,"CPU required time for %d images classification is %f (s)\n",NBLOCKS,totTimeGPU);
+		fprintf(stdout,"GPU required time for %d images classification is %f (s)\n",NBLOCKS,totTimeGPU);
 		
 		return 0;
 		
