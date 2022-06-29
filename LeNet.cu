@@ -861,6 +861,11 @@ __global__ void deviceForwardBlocks(Cluster *c)
 		fprintf(stdout,"CPU required time for %d images classification is %f (s)\n",NBLOCKS,totTimeCPU);
 		fprintf(stdout,"GPU required time for %d images classification is %f (s)\n",NBLOCKS,totTimeGPU);
 		
+		free(feats);
+		free(weights);
+		free(cluster);
+
+		CHECK_CUDA(cudaFree(dStruct));
 		return 0;
 		
 	}
